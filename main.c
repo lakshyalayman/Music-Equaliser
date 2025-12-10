@@ -8,16 +8,30 @@
 
 #define ARRAY_LEN(xs) sizeof(xs)/sizeof(xs[0])
 
-int64_t global_frames[4800] = {0};
+uint64_t global_frames[4410] = {0};
 size_t global_frame_count = 0;
 
 void callback(void *bufferData,unsigned int frames){
+  size_t cap = ARRAY_LEN(global_frames);
+  if(frames <= cap - global_frame_count){
+    memcpy(global_frames+global_frame_count,bufferData,frames*sizeof(uint64_t));
+    global_frame_count += frames;
+  }else if(frames <= cap){
+    memmove(global_frames,global_frames + frames,(cap-frames)*sizeof(uint64_t));
+    memcpy(global_frames + (cap - frames),bufferData,frames*sizeof(uint64_t));
+  }else{
+    memcpy(global_frames,bufferData,cap*sizeof(uint64_t));
+    global_frame_count = cap;
+  }
+
+
+  /*
   if(frames > ARRAY_LEN(global_frames)){
     frames = ARRAY_LEN(global_frames);
   }
-
   memcpy(global_frames,bufferData,frames*sizeof(int64_t));
   global_frame_count = frames;
+  */
 }
 void closeFunc(Music music){
   UnloadMusicStream(music);
@@ -78,15 +92,17 @@ int main(void)
         float left = fp[0];
         float right = fp[1];
         float t = left;
+        float p = right;
         int x = (int)(i*cell_width);
         int barW = (int)(cell_width > 1.0f ? cell_width : 1.0f);
         if(t >= 0){
           int barH = (int)(t * (h/2.0f));
-          DrawRectangle(x,h/2 - barH,barW,barH,RED);
+          DrawRectangle(x,h/2 - barH,1,barH*2,RED);
         }else{
           int barH = (int)(-t * (h/2.0f));
-          DrawRectangle(x,h/2,barW,barH,RED);
+          DrawRectangle(x,h/2-barH,1,barH*2,RED);
         }
+        // DrawRectangle(int posX, int posY, int width, int height, Color color)
       }
     // printf("%lu\n",global_frame_count);
     // printf("\n");
