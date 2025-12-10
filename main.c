@@ -8,7 +8,7 @@
 
 #define ARRAY_LEN(xs) sizeof(xs)/sizeof(xs[0])
 
-uint64_t global_frames[1024] = {0};
+int64_t global_frames[4800] = {0};
 size_t global_frame_count = 0;
 
 void callback(void *bufferData,unsigned int frames){
@@ -16,7 +16,7 @@ void callback(void *bufferData,unsigned int frames){
     frames = ARRAY_LEN(global_frames);
   }
 
-  memcpy(global_frames,bufferData,frames*sizeof(uint64_t));
+  memcpy(global_frames,bufferData,frames*sizeof(int64_t));
   global_frame_count = frames;
 }
 void closeFunc(Music music){
@@ -27,7 +27,7 @@ void closeFunc(Music music){
 int main(void)
 {
   printf("Hello World\n");
-  InitWindow(800,600,"Vamos");
+  InitWindow(1200,800,"Vamos");
   SetTargetFPS(60);
 
   InitAudioDevice();
@@ -53,14 +53,43 @@ int main(void)
         ResumeMusicStream(music);
       }
     }
+    int w = GetRenderWidth();
+    int h = GetRenderHeight();
+    // printf("%d %d\n",w,h);
     BeginDrawing();
     ClearBackground(CLITERAL(Color) {0x18, 0x18, 0x18, 0xFF});
-    float cell_width = (float)GetRenderWidth()/global_frame_count;
+    float cell_width = (float)w/global_frame_count;
+    /*
     for(size_t i = 0;i<global_frame_count;++i){
        int32_t sample = *(int32_t*)&global_frames[i]; 
-       printf(" %d ",sample);
-     }
-    printf("\n");
+       // printf(" %d ",sample);
+       if(sample > 0){
+        float t = (float)sample/INT32_MAX;
+        DrawRectangle(i*cell_width,(float)h/2 - (float)h/2*t,cell_width,(float)h/2*t,RED);
+       }else{
+        float t = (float)sample/INT32_MIN;
+        DrawRectangle(i*cell_width,h/2,cell_width,(float)h/2*t,RED);
+        // DrawRectangle(int posX, int posY, int width, int height, Color color)
+       }
+     }*/
+    for(size_t i = 0;i<global_frame_count;++i){
+        uint64_t packed = global_frames[i];
+        float *fp = (float *)&packed;
+        float left = fp[0];
+        float right = fp[1];
+        float t = left;
+        int x = (int)(i*cell_width);
+        int barW = (int)(cell_width > 1.0f ? cell_width : 1.0f);
+        if(t >= 0){
+          int barH = (int)(t * (h/2.0f));
+          DrawRectangle(x,h/2 - barH,barW,barH,RED);
+        }else{
+          int barH = (int)(-t * (h/2.0f));
+          DrawRectangle(x,h/2,barW,barH,RED);
+        }
+      }
+    // printf("%lu\n",global_frame_count);
+    // printf("\n");
     // if(global_frame_count > 0) exit(1);
     EndDrawing();
   }
