@@ -8,19 +8,24 @@
 
 #define ARRAY_LEN(xs) sizeof(xs)/sizeof(xs[0])
 
-uint64_t global_frames[4410] = {0};
+typedef struct {
+  float left;
+  float right;
+} Frame;
+
+Frame global_frames[4410*2] = {0};
 size_t global_frame_count = 0;
 
 void callback(void *bufferData,unsigned int frames){
   size_t cap = ARRAY_LEN(global_frames);
   if(frames <= cap - global_frame_count){
-    memcpy(global_frames+global_frame_count,bufferData,frames*sizeof(uint64_t));
+    memcpy(global_frames+global_frame_count,bufferData,frames*sizeof(Frame));
     global_frame_count += frames;
   }else if(frames <= cap){
-    memmove(global_frames,global_frames + frames,(cap-frames)*sizeof(uint64_t));
-    memcpy(global_frames + (cap - frames),bufferData,frames*sizeof(uint64_t));
+    memmove(global_frames,global_frames + frames,(cap-frames)*sizeof(Frame));
+    memcpy(global_frames + (cap - frames),bufferData,frames*sizeof(Frame));
   }else{
-    memcpy(global_frames,bufferData,cap*sizeof(uint64_t));
+    memcpy(global_frames,bufferData,cap*sizeof(Frame));
     global_frame_count = cap;
   }
 
@@ -68,11 +73,36 @@ int main(void)
       }
     }
     int w = GetRenderWidth();
-    int h = GetRenderHeight();
+    float h = (float)GetRenderHeight();
     // printf("%d %d\n",w,h);
     BeginDrawing();
     ClearBackground(CLITERAL(Color) {0x18, 0x18, 0x18, 0xFF});
     float cell_width = (float)w/global_frame_count;
+    for(size_t i = 0;i<global_frame_count;++i){
+        float t = global_frames[i].left;
+        // float *fp = (float *)&packed;
+        // float left = fp[0];
+        // float right = fp[1];
+        // float t = left;
+        // float p = right;
+        int x = (int)(i*cell_width);
+        int barW = (int)(cell_width > 1.0f ? cell_width : 1.0f);
+        if(t >= 0){
+          // int barH = (int)(t * (h/2.0f));
+          // DrawRectangle(x,h/2 - barH,barW,barH*2,RED);
+          // DrawRectangle(x,h/2 - barH,1,barH*2,RED);
+          // DrawRectangle(x,h/2-barH,1,barH,RED);
+          DrawRectangle(i*cell_width,h/2-h/2*t,1,h/2*t,RED);
+        }else{
+          // int barH = (int)(-t * (h/2.0f));
+          DrawRectangle(i*cell_width,h/2,1,h/2*t,MAGENTA);
+        }
+      }
+    EndDrawing();
+  }
+  closeFunc(music);
+  return 0;
+}
     /*
     for(size_t i = 0;i<global_frame_count;++i){
        int32_t sample = *(int32_t*)&global_frames[i]; 
@@ -86,29 +116,4 @@ int main(void)
         // DrawRectangle(int posX, int posY, int width, int height, Color color)
        }
      }*/
-    for(size_t i = 0;i<global_frame_count;++i){
-        uint64_t packed = global_frames[i];
-        float *fp = (float *)&packed;
-        float left = fp[0];
-        float right = fp[1];
-        float t = left;
-        float p = right;
-        int x = (int)(i*cell_width);
-        int barW = (int)(cell_width > 1.0f ? cell_width : 1.0f);
-        if(t >= 0){
-          int barH = (int)(t * (h/2.0f));
-          DrawRectangle(x,h/2 - barH,1,barH*2,RED);
-        }else{
-          int barH = (int)(-t * (h/2.0f));
-          DrawRectangle(x,h/2-barH,1,barH*2,RED);
-        }
-        // DrawRectangle(int posX, int posY, int width, int height, Color color)
-      }
-    // printf("%lu\n",global_frame_count);
-    // printf("\n");
-    // if(global_frame_count > 0) exit(1);
-    EndDrawing();
-  }
-  closeFunc(music);
-  return 0;
-}
+
