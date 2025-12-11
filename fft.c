@@ -41,7 +41,7 @@ void fft(float in[],size_t stride,float complex out[],size_t n){
 int main(){
   printf("Hello, World\n");
 
-  size_t n = 8;
+  size_t n = 2048*16;
   float in[n];
   pi = atan2f(1,1)*4;
   float complex out[n],outf[n];
@@ -49,25 +49,8 @@ int main(){
     float t = (float)i/n;
     in[i] = cosf(2*pi*t*3) + sinf(2*pi*t*2) + cosf(2*pi*t*1);
   }
-  // for(size_t f = 0;f<n/2;++f){
-  //   out[f] = 0;
-  //   out[f + n/2] = 0;
-  //
-  //   for(size_t i = 0;i<n;i+=2){
-  //     float t = (float)i/n;
-  //     float complex cmpx = in[i]*cexp(2*I*pi*t*f);
-  //     out[f] += cmpx;
-  //     out[f+n/2] += cmpx;
-  //   }
-  //   for(size_t i = 1;i<n;i+=2){
-  //     float t = (float)i/n;
-  //     float complex cmpx = in[i]*cexp(2*I*pi*t*f);
-  //     out[f] += cmpx;
-  //     out[f+n/2] -= cmpx;
-  //   }
-  // }
-  printf("DFT\n\n");
-  dft(in,out,n);
+  // printf("DFT\n\n");
+  // dft(in,out,n);
   printf("FFT\n\n");
   fft(in,1,outf,n);
 
