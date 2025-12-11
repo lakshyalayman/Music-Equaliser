@@ -100,11 +100,11 @@ int main(void)
     }
     int w = GetRenderWidth();
     float h = (float)GetRenderHeight();
-    float cell_width = (float)w/N;
+    float cell_width = (float)w/N * 2;
     // printf("%d %d\n",w,h);
     BeginDrawing();
       ClearBackground(CLITERAL(Color) {0x18, 0x18, 0x18, 0xFF});
-      for(size_t i = 0;i<N;++i){
+      for(size_t i = 0;i<N/2;++i){
         float t = (float) amp(out[i]); 
         // float t = (float) amp(out[i])/max_amp;
         DrawRectangle(i*cell_width,h-h/2*t,cell_width,h/2*t,RED);
