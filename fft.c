@@ -5,6 +5,21 @@
 
 float pi;
 
+void dft(float in[],float complex out[],size_t n){
+  for(size_t f = 0;f<n;++f){
+    out[f] = 0;
+    for(size_t i = 0;i<n;++i){
+      float t = (float)i/n;
+      out[f] += in[i]*cexp(I*2*pi*f*t);
+    }
+  }
+  for(size_t f = 0;f<n;++f){
+    printf("%02zu: real(%.2f) complex(%.2fi)\n",f,creal(out[f]),cimag(out[f]));
+  }
+}
+
+
+
 int main(){
   printf("Hello, World\n");
   // float complex io = I;
@@ -18,9 +33,8 @@ int main(){
   float complex out[n];
   for(size_t i = 0;i<n;++i){
     float t = (float)i/n;
-    in[i] = sinf(2*pi*t) + cosf(2*pi*t*3);
+    in[i] = sinf(2*pi*t*3) + cosf(2*pi*t*2);
   }
-  
   for(size_t f = 0;f<n/2;++f){
     out[f] = 0;
     out[f + n/2] = 0;
@@ -39,17 +53,10 @@ int main(){
     }
   }
 
-  // for(size_t f = 0;f<n;++f){
-  //   out[f] = 0;
-  //   for(size_t i = 0;i<n;++i){
-  //     float t = (float)i/n;
-  //     out[f] += in[i]*cexp(I*2*pi*f*t);
-  //     // out[f] += in[i]*sinf(2*pi*f*t);
-  //   }
-  //   
-  // }
+
   for(size_t f = 0;f<n;++f){
     printf("%02zu: real(%.2f) complex(%.2fi)\n",f,creal(out[f]),cimag(out[f]));
   }
+  // printf("\n %.2f | %.2f\n",a,b);
   return 0;
 }
