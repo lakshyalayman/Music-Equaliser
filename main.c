@@ -5,39 +5,65 @@
 #include <string.h>
 #include <unistd.h>
 #include <raylib.h>
+#include <assert.h>
+#include <math.h>
+#include <complex.h>
 
 #define ARRAY_LEN(xs) sizeof(xs)/sizeof(xs[0])
+#define N 512
+
+float pi;
+float max_amp;
 
 typedef struct {
   float left;
   float right;
 } Frame;
 
-Frame global_frames[4410*2] = {0};
-size_t global_frame_count = 0;
+float in[N];
+float complex out[N];
+
+float amp(float complex z){
+  float a = fabsf(crealf(z));
+  float b = fabsf(cimagf(z));
+  if(a > b) return a;
+  return b;
+}
+
+void fft(float in[],size_t stride,float complex out[],size_t n){
+  assert(n > 0);
+  if(n == 1){
+    out[0] = in[0];
+    return;
+  }
+
+  fft(in,stride*2,out,n/2);
+  fft(in+stride,stride*2,out+n/2,n/2);
+
+  for(size_t k = 0;k<n/2;++k){
+    float t = (float)k/n;
+    float complex v = cexp(-2*pi*I*t)*out[k+n/2];
+    float complex e = out[k];
+    out[k] = e+v;
+    out[k+n/2] = e-v;
+  }
+}
 
 void callback(void *bufferData,unsigned int frames){
-  size_t cap = ARRAY_LEN(global_frames);
-  if(frames <= cap - global_frame_count){
-    memcpy(global_frames+global_frame_count,bufferData,frames*sizeof(Frame));
-    global_frame_count += frames;
-  }else if(frames <= cap){
-    memmove(global_frames,global_frames + frames,(cap-frames)*sizeof(Frame));
-    memcpy(global_frames + (cap - frames),bufferData,frames*sizeof(Frame));
-  }else{
-    memcpy(global_frames,bufferData,cap*sizeof(Frame));
-    global_frame_count = cap;
+  if(frames < N) return;
+  Frame *fs = bufferData;
+  for(size_t i = 0;i<frames;++i){
+    in[i] = fs[i].left;
   }
+  fft(in,1,out,N);
+  max_amp = 0.0f;
 
-
-  /*
-  if(frames > ARRAY_LEN(global_frames)){
-    frames = ARRAY_LEN(global_frames);
+  for(size_t i = 0;i<frames;++i){
+    float a = amp(out[i]);
+    if(max_amp < a) max_amp = a;
   }
-  memcpy(global_frames,bufferData,frames*sizeof(int64_t));
-  global_frame_count = frames;
-  */
 }
+
 void closeFunc(Music music){
   UnloadMusicStream(music);
   CloseAudioDevice();
@@ -45,6 +71,7 @@ void closeFunc(Music music){
 }
 int main(void)
 {
+  pi = atan2f(1,1)*4;
   printf("Hello World\n");
   InitWindow(1200,800,"Vamos");
   SetTargetFPS(60);
@@ -62,7 +89,6 @@ int main(void)
   while(!WindowShouldClose()){
     UpdateMusicStream(music);
     if(IsKeyPressed(KEY_Q)){
-      // closeFunc(music);
       break;
     }
     if(IsKeyPressed(KEY_SPACE)){
@@ -74,30 +100,17 @@ int main(void)
     }
     int w = GetRenderWidth();
     float h = (float)GetRenderHeight();
+    float cell_width = (float)w/N;
     // printf("%d %d\n",w,h);
     BeginDrawing();
-    ClearBackground(CLITERAL(Color) {0x18, 0x18, 0x18, 0xFF});
-    float cell_width = (float)w/global_frame_count;
-    for(size_t i = 0;i<global_frame_count;++i){
-        float t = global_frames[i].left;
-        // float *fp = (float *)&packed;
-        // float left = fp[0];
-        // float right = fp[1];
-        // float t = left;
-        // float p = right;
-        int x = (int)(i*cell_width);
-        int barW = (int)(cell_width > 1.0f ? cell_width : 1.0f);
-        if(t >= 0){
-          // int barH = (int)(t * (h/2.0f));
-          // DrawRectangle(x,h/2 - barH,barW,barH*2,RED);
-          // DrawRectangle(x,h/2 - barH,1,barH*2,RED);
-          // DrawRectangle(x,h/2-barH,1,barH,RED);
-          DrawRectangle(i*cell_width,h/2-h/2*t,1,h/2*t,RED);
-        }else{
-          // int barH = (int)(-t * (h/2.0f));
-          DrawRectangle(i*cell_width,h/2,1,h/2*t,MAGENTA);
-        }
+      ClearBackground(CLITERAL(Color) {0x18, 0x18, 0x18, 0xFF});
+      for(size_t i = 0;i<N;++i){
+        float t = (float) amp(out[i]); 
+        // float t = (float) amp(out[i])/max_amp;
+        DrawRectangle(i*cell_width,h-h/2*t,cell_width,h/2*t,RED);
+        // DrawRectangle(int posX, int posY, int width, int height, Color color)
       }
+
     EndDrawing();
   }
   closeFunc(music);
@@ -116,4 +129,13 @@ int main(void)
         // DrawRectangle(int posX, int posY, int width, int height, Color color)
        }
      }*/
-
+    // for(size_t i = 0;i<global_frame_count;++i){
+    //     float t = global_frames[i].left;
+    //     int x = (int)(i*cell_width);
+    //     int barW = (int)(cell_width > 1.0f ? cell_width : 1.0f);
+    //     if(t >= 0){
+    //       DrawRectangle(i*cell_width,h/2-h/2*t,1,h/2*t,RED);
+    //     }else{
+    //       DrawRectangle(i*cell_width,h/2,1,h/2*t,MAGENTA);
+    //     }
+    //   }
