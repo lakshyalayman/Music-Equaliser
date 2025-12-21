@@ -1,0 +1,17 @@
+#ifndef PLUG_H_
+#define PLUG_H_
+
+#include <stddef.h>
+#include <complex.h>
+#include <raylib.h>
+
+#define N 512
+typedef struct {
+  Music music;
+} Plug;
+
+typedef void (*plug_hello_t)(void);
+typedef void (*plug_init_t)(Plug *plug);
+typedef void (*plug_update_t)(Plug *plug);
+
+#endif
