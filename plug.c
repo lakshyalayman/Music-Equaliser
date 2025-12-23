@@ -1,10 +1,11 @@
 #include <assert.h>
+#include <stddef.h>
 #include <stdio.h>
 #include "plug.h"
 #include <math.h>
 
+// #define N (1 << 14)
 #define N (1 << 14)
-// #define N (1 << 9)
 
 typedef struct {
   float left;
@@ -96,13 +97,18 @@ void plug_update(Plug *plug){
         if(max_amp < a) max_amp = a;
       }
 
+      float step = 1.06;
+      size_t m = 0;
+      for(float f = 20.0;(size_t) f < N; f*= step)m+=1;
       
-      // float cell_width = (float)w/N;
-      float cell_width = 2;
-      for(size_t i = 0;i<N;++i){
+      float cell_width = (float)w/m;
+      m = 0;
+      // float cell_width = 10;
+      for(float f = 20.0;(size_t)f<N;f*=step){
         // float t = (float) amp(out[i]); 
-        float t = (float) amp(out[i])/max_amp;
-        DrawRectangle(i*cell_width,h/2-h/2*t,cell_width,h/2*t,WHITE);
+        float t = amp(out[(size_t) floorf(f)])/max_amp;
+        DrawRectangle(m*cell_width,h/2-h/2*t,cell_width,h/2*t,WHITE);
+        m+=1;
         // printf()
       }
 
