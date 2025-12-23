@@ -5,7 +5,6 @@
 #include <complex.h>
 #include <raylib.h>
 
-#define N 512
 typedef struct {
   Music music;
 } Plug;

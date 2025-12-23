@@ -3,6 +3,9 @@
 #include "plug.h"
 #include <math.h>
 
+#define N (1 << 14)
+// #define N (1 << 9)
+
 typedef struct {
   float left;
   float right;
@@ -19,7 +22,7 @@ float amp(float complex z){
 }
 
 void callback(void *bufferData,unsigned int frames){
-  if(frames < N) return;
+  // if(frames < N) return;
   Frame *fs = bufferData;
   for(size_t i = 0;i<frames;++i){
     in[i] = fs[i].left;
@@ -57,8 +60,8 @@ void plug_hello(){
 
 void plug_init(Plug *plug){
 
-  plug->music = LoadMusicStream("letItHappen.mp3");
-  SetMusicVolume(plug->music,0.3);
+  plug->music = LoadMusicStream("loser.mp3");
+  SetMusicVolume(plug->music,0.2);
   PlayMusicStream(plug->music);
   // float x = GetMusicTimeLength(plug->music);
   // printf("%f\n",x/60.0);
@@ -82,7 +85,6 @@ void plug_update(Plug *plug){
 
     int w = GetRenderWidth();
     float h = (float)GetRenderHeight();
-    float cell_width = (float)w/N;
     // printf("%d %d\n",w,h);
     BeginDrawing();
       ClearBackground(CLITERAL(Color) {0x18, 0x18, 0x18, 0xFF});
@@ -95,10 +97,13 @@ void plug_update(Plug *plug){
       }
 
       
+      // float cell_width = (float)w/N;
+      float cell_width = 2;
       for(size_t i = 0;i<N;++i){
         // float t = (float) amp(out[i]); 
         float t = (float) amp(out[i])/max_amp;
-        DrawRectangle(i*cell_width,h-h/2*t,cell_width,h/2*t,WHITE);
+        DrawRectangle(i*cell_width,h/2-h/2*t,cell_width,h/2*t,WHITE);
+        // printf()
       }
 
     EndDrawing();
