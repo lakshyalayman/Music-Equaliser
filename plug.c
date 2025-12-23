@@ -1,9 +1,7 @@
 #include <assert.h>
-#include <raylib.h>
 #include <stdio.h>
 #include "plug.h"
 #include <math.h>
-#include <complex.h>
 
 typedef struct {
   float left;
@@ -60,6 +58,7 @@ void plug_hello(){
 void plug_init(Plug *plug){
 
   plug->music = LoadMusicStream("letItHappen.mp3");
+  SetMusicVolume(plug->music,0.3);
   PlayMusicStream(plug->music);
   // float x = GetMusicTimeLength(plug->music);
   // printf("%f\n",x/60.0);
@@ -72,13 +71,7 @@ void plug_init(Plug *plug){
 
 void plug_update(Plug *plug){
     UpdateMusicStream(plug->music);
-    // if(IsKeyPressed(KEY_Q)){
-    //   // break;
-    //   // return;
-    //   closeFunc(plug->music);
-    //   // UnloadMusicStream(plug->music);
-    //   printf("Unloaded Music Stream Successfully\n");
-    // }
+
     if(IsKeyPressed(KEY_SPACE)){
       if(IsMusicStreamPlaying(plug->music)){
         PauseMusicStream(plug->music);
@@ -86,6 +79,7 @@ void plug_update(Plug *plug){
         ResumeMusicStream(plug->music);
       }
     }
+
     int w = GetRenderWidth();
     float h = (float)GetRenderHeight();
     float cell_width = (float)w/N;
@@ -101,10 +95,10 @@ void plug_update(Plug *plug){
       }
 
       
-      for(size_t i = 0;i<N/2;++i){
+      for(size_t i = 0;i<N;++i){
         // float t = (float) amp(out[i]); 
         float t = (float) amp(out[i])/max_amp;
-        DrawRectangle(i*cell_width,h-h/2*t,cell_width,h/2*t,RED);
+        DrawRectangle(i*cell_width,h-h/2*t,cell_width,h/2*t,WHITE);
       }
 
     EndDrawing();
