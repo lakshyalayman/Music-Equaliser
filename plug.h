@@ -15,4 +15,11 @@ typedef void (*plug_update_t)(Plug *plug);
 typedef void (*plug_pre_reload_t)(Plug *plug);
 typedef void (*plug_post_reload_t)(Plug *plug);
 
+#define LIST_OF_PLUGS \
+  PLUG(plug_hello) \
+  PLUG(plug_init) \
+  PLUG(plug_update) \
+  PLUG(plug_pre_reload) \
+  PLUG(plug_post_reload)
+
 #endif
