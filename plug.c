@@ -1,11 +1,11 @@
 #include <assert.h>
+#include <string.h>
 #include <raylib.h>
 #include <stddef.h>
 #include <stdio.h>
 #include "plug.h"
 #include <math.h>
 
-// #define N (1 << 14)
 #define N (1 << 14)
 
 typedef struct {
@@ -24,10 +24,10 @@ float amp(float complex z){
 }
 
 void callback(void *bufferData,unsigned int frames){
-  // if(frames < N) return;
   Frame *fs = bufferData;
   for(size_t i = 0;i<frames;++i){
-    in[i] = fs[i].left;
+    memmove(in,in+2,(N-2)*sizeof(in[0]));
+    in[N-1] = fs[i].left;
   }
 }
 
@@ -73,9 +73,19 @@ void plug_init(Plug *plug){
   printf("sampleSize: %u\n",plug->music.stream.sampleSize);
   AttachAudioStreamProcessor(plug->music.stream,callback);
 }
+
 void plug_set_volume(Plug *plug,float t){
   SetMusicVolume(plug->music,t);
 }
+
+void plug_pre_reload(Plug *plug){
+  DetachAudioStreamProcessor(plug->music.stream,callback);
+}
+
+void plug_post_reload(Plug *plug){
+  AttachAudioStreamProcessor(plug->music.stream,callback);
+}
+
 bool marker = true;
 void plug_update(Plug *plug){
     UpdateMusicStream(plug->music);
