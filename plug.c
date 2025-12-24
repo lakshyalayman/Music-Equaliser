@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <raylib.h>
 #include <stddef.h>
 #include <stdio.h>
 #include "plug.h"
@@ -72,7 +73,10 @@ void plug_init(Plug *plug){
   printf("sampleSize: %u\n",plug->music.stream.sampleSize);
   AttachAudioStreamProcessor(plug->music.stream,callback);
 }
-
+void plug_set_volume(Plug *plug,float t){
+  SetMusicVolume(plug->music,t);
+}
+bool marker = true;
 void plug_update(Plug *plug){
     UpdateMusicStream(plug->music);
 
@@ -82,6 +86,15 @@ void plug_update(Plug *plug){
       }else{
         ResumeMusicStream(plug->music);
       }
+    }
+    
+    if(IsKeyPressed(KEY_MINUS)){
+      if(!marker){
+        SetMusicVolume(plug->music,0.0f);
+      }else{
+        SetMusicVolume(plug->music,0.2f);
+      }
+      marker = !marker;
     }
 
     int w = GetRenderWidth();
@@ -106,7 +119,13 @@ void plug_update(Plug *plug){
       // float cell_width = 10;
       for(float f = 20.0;(size_t)f<N;f*=step){
         // float t = (float) amp(out[i]); 
-        float t = amp(out[(size_t) floorf(f)])/max_amp;
+        float f1 = f*step;
+        float a = 0.0f;
+        for(size_t q = (size_t) f;q<N&&q<(size_t) f1;++q){
+          a+= amp(out[q]);
+        }
+        a/=(size_t)f1 - (size_t) f + 1;
+        float t = a/max_amp;
         DrawRectangle(m*cell_width,h/2-h/2*t,cell_width,h/2*t,WHITE);
         m+=1;
         // printf()
