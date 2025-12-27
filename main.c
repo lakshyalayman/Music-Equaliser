@@ -35,31 +35,6 @@ int reload_libplug(void){
     } 
   LIST_OF_PLUGS
   #undef PLUG
-  // plug_hello = dlsym(libplug,"plug_hello");
-  // if(plug_hello == NULL){
-  //   fprintf(stderr,"ERROR:could not find plug_hello symbol in %s: %s",libplug_file_name,dlerror());
-  //   return 1;
-  // }
-  // plug_init = dlsym(libplug,"plug_init");
-  // if(plug_init == NULL){
-  //   fprintf(stderr,"ERROR:could not find plug_init symbol in %s: %s",libplug_file_name,dlerror());
-  //   return 1;
-  // }
-  // plug_update = dlsym(libplug,"plug_update");
-  // if(plug_update == NULL){
-  //   fprintf(stderr,"ERROR:could not find plug_update symbol in %s: %s",libplug_file_name,dlerror());
-  //   return 1;
-  // }
-  // plug_pre_reload = dlsym(libplug,"plug_pre_reload");
-  // if(plug_pre_reload == NULL){
-  //   fprintf(stderr,"ERROR:could not find plug_pre_reload symbol in %s: %s",libplug_file_name,dlerror());
-  //   return 1;
-  // }
-  // plug_post_reload = dlsym(libplug,"plug_post_reload");
-  // if(plug_post_reload == NULL){
-  //   fprintf(stderr,"ERROR:could not find plug_post_reload symbol in %s: %s",libplug_file_name,dlerror());
-  //   return 1;
-  // }
   plug_hello();
   return 0;
 }
