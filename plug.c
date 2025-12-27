@@ -88,59 +88,72 @@ void plug_post_reload(Plug *plug){
 
 bool marker = true;
 void plug_update(Plug *plug){
-    UpdateMusicStream(plug->music);
+  UpdateMusicStream(plug->music);
 
-    if(IsKeyPressed(KEY_SPACE)){
-      if(IsMusicStreamPlaying(plug->music)){
-        PauseMusicStream(plug->music);
-      }else{
-        ResumeMusicStream(plug->music);
-      }
+  if(IsFileDropped()){
+    FilePathList dfile = LoadDroppedFiles();
+    printf("File dropped\n");
+    // if(dfile.capacity == 0){
+    //   printf("can't work\n");
+    // }else{
+      // printf("%i\n%i\n",dfile.capacity,dfile.count);
+      // for(size_t i = 0;i<dfile.count;++i){
+      //   printf("\t%s\n",dfile.paths[i]);
+      // }
+    UnloadDroppedFiles(dfile);
+  }    
+
+  if(IsKeyPressed(KEY_SPACE)){
+    if(IsMusicStreamPlaying(plug->music)){
+      PauseMusicStream(plug->music);
+    }else{
+      ResumeMusicStream(plug->music);
     }
+  }
     
-    if(IsKeyPressed(KEY_MINUS)){
-      if(!marker){
-        SetMusicVolume(plug->music,0.0f);
-      }else{
-        SetMusicVolume(plug->music,0.2f);
-      }
-      marker = !marker;
+  if(IsKeyPressed(KEY_MINUS)){
+    if(!marker){
+      SetMusicVolume(plug->music,0.0f);
+    }else{
+      SetMusicVolume(plug->music,0.2f);
+    }
+    marker = !marker;
+  }
+
+  int w = GetRenderWidth();
+  float h = (float)GetRenderHeight();
+    // printf("%d %d\n",w,h);
+  BeginDrawing();
+    ClearBackground(CLITERAL(Color) {0x18, 0x18, 0x18, 0xFF});
+    fft(in,1,out,N);
+    float max_amp = 0.0f;
+
+    for(size_t i = 0;i<N;++i){
+      float a = amp(out[i]);
+      if(max_amp < a) max_amp = a;
     }
 
-    int w = GetRenderWidth();
-    float h = (float)GetRenderHeight();
-    // printf("%d %d\n",w,h);
-    BeginDrawing();
-      ClearBackground(CLITERAL(Color) {0x18, 0x18, 0x18, 0xFF});
-      fft(in,1,out,N);
-      float max_amp = 0.0f;
-
-      for(size_t i = 0;i<N;++i){
-        float a = amp(out[i]);
-        if(max_amp < a) max_amp = a;
+    float step = 1.06;
+    size_t m = 0;
+    for(float f = 20.0;(size_t) f < N; f*= step)m+=1;
+    
+    float cell_width = (float)w/m;
+    m = 0;
+    // float cell_width = 10;
+    for(float f = 20.0;(size_t)f<N;f*=step){
+      // float t = (float) amp(out[i]); 
+      float f1 = f*step;
+      float a = 0.0f;
+      for(size_t q = (size_t) f;q<N&&q<(size_t) f1;++q){
+        a+= amp(out[q]);
       }
+      a/=(size_t)f1 - (size_t) f + 1;
+      float t = a/(max_amp);
+      // float t = a;
+      DrawRectangle(m*cell_width,h-h/2*t,cell_width,h/2*t,SKYBLUE);
+      m+=1;
+      // printf()
+    }
 
-      float step = 1.06;
-      size_t m = 0;
-      for(float f = 20.0;(size_t) f < N; f*= step)m+=1;
-      
-      float cell_width = (float)w/m;
-      m = 0;
-      // float cell_width = 10;
-      for(float f = 20.0;(size_t)f<N;f*=step){
-        // float t = (float) amp(out[i]); 
-        float f1 = f*step;
-        float a = 0.0f;
-        for(size_t q = (size_t) f;q<N&&q<(size_t) f1;++q){
-          a+= amp(out[q]);
-        }
-        a/=(size_t)f1 - (size_t) f + 1;
-        float t = a/(max_amp);
-        // float t = a;
-        DrawRectangle(m*cell_width,h-h/2*t,cell_width,h/2*t,SKYBLUE);
-        m+=1;
-        // printf()
-      }
-
-    EndDrawing();
+  EndDrawing();
 }
