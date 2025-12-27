@@ -8,11 +8,6 @@
 
 #define N (1 << 14)
 
-typedef struct {
-  float left;
-  float right;
-} Frame;
-
 float in[N];
 float complex out[N];
 
@@ -24,10 +19,11 @@ float amp(float complex z){
 }
 
 void callback(void *bufferData,unsigned int frames){
-  Frame *fs = bufferData;
+  // Frame *fs = bufferData;
+  float (*fs)[2] = bufferData;
   for(size_t i = 0;i<frames;++i){
     memmove(in,in+2,(N-2)*sizeof(in[0]));
-    in[N-1] = fs[i].left;
+    in[N-1] = fs[i][0];
   }
 }
 
@@ -92,16 +88,16 @@ void plug_update(Plug *plug){
 
   if(IsFileDropped()){
     FilePathList dfile = LoadDroppedFiles();
-    printf("File dropped\n");
-    // if(dfile.capacity == 0){
-    //   printf("can't work\n");
-    // }else{
-      // printf("%i\n%i\n",dfile.capacity,dfile.count);
-      // for(size_t i = 0;i<dfile.count;++i){
-      //   printf("\t%s\n",dfile.paths[i]);
-      // }
+    printf("%i\n%i\n",dfile.capacity,dfile.count);
+    // if(dfile.capacity > 0){
+      const char *dropped_path = dfile.paths[0];
+      StopMusicStream(plug->music);
+      plug->music = LoadMusicStream(dropped_path);
+      PlayMusicStream(plug->music);
+      AttachAudioStreamProcessor(plug->music.stream,callback);
+    // }
     UnloadDroppedFiles(dfile);
-  }    
+  }
 
   if(IsKeyPressed(KEY_SPACE)){
     if(IsMusicStreamPlaying(plug->music)){
@@ -133,7 +129,7 @@ void plug_update(Plug *plug){
       if(max_amp < a) max_amp = a;
     }
 
-    float step = 1.06;
+    float step = 1.1;
     size_t m = 0;
     for(float f = 20.0;(size_t) f < N; f*= step)m+=1;
     
@@ -150,7 +146,7 @@ void plug_update(Plug *plug){
       a/=(size_t)f1 - (size_t) f + 1;
       float t = a/(max_amp);
       // float t = a;
-      DrawRectangle(m*cell_width,h-h/2*t,cell_width,h/2*t,SKYBLUE);
+      DrawRectangle(m*cell_width,h-h/2*t,cell_width,h/2*t,GOLD);
       m+=1;
       // printf()
     }
