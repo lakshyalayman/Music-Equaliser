@@ -39,9 +39,15 @@ int main(void)
   SetTargetFPS(60);
   InitAudioDevice();
   // char *file_path = "loser.mp3";
-  char *file_path = "/home/ignotus/Desktop/music-visualizer/loser.mp3";
-  plug_init();
+  char *file_path = "loser.mp3";
 
+  /*
+    plug_init for drag and drop setup by default 
+    plug_src_init for a source file init by default
+    */
+
+  // plug_init();
+  plug_src_init(file_path);
   while(!WindowShouldClose()){
     if(IsKeyPressed(KEY_R)){
       void *state = plug_pre_reload();

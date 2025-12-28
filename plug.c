@@ -7,6 +7,7 @@
 #include <math.h>
 
 typedef struct {
+  bool error;
   Music music;
 } Plug;
 
@@ -57,6 +58,15 @@ void plug_init(void){
   memset(plug,0,sizeof(*plug));
 }
 
+void plug_src_init(const char *src){
+  plug = malloc(sizeof(*plug));
+  assert(plug != NULL && "assert failure at plug_src_init");
+  memset(plug,0,sizeof(*plug));
+  plug->music = LoadMusicStream(src);
+  PlayMusicStream(plug->music);
+  AttachAudioStreamProcessor(plug->music.stream,callback);
+}
+
 void plug_unload_stream(void){
   UnloadMusicStream(plug->music);
   CloseAudioDevice();
@@ -91,10 +101,11 @@ void plug_update(void){
     }
     plug->music = LoadMusicStream(dropped_path);
     if(IsMusicValid(plug->music)){
+      plug->error = false;
       PlayMusicStream(plug->music);
       AttachAudioStreamProcessor(plug->music.stream,callback);
       UnloadDroppedFiles(dfile);
-    }
+    }else plug->error = true;
   }
 
   if(IsKeyPressed(KEY_SPACE) && IsMusicValid(plug->music)){
@@ -150,8 +161,8 @@ void plug_update(void){
         // printf()
       }
   }else{
-      printf("Mat kar lala\n");
-      DrawText("Drop music",1,1,70,GOLD);
+      if(plug->error) DrawText("Eroor :(",0,0,70,RED);
+      else DrawText("Drop music",1,1,70,GOLD);
     }
 
   EndDrawing();
