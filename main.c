@@ -1,21 +1,11 @@
 #include <dlfcn.h>
-#include <raylib.h>
 #include <stdio.h>
 #include "plug.h"
-
-#define ARRAY_LEN(xs) sizeof(xs)/sizeof(xs[0])
-Plug plug = {0};
-
-void closeFunc(Plug *plug){
-  UnloadMusicStream(plug->music);
-  CloseAudioDevice();
-  CloseWindow();
-}
 
 const char *libplug_file_name = "libplug.so";
 void *libplug = NULL;
 
-#define PLUG(name) name##_t name = NULL;
+#define PLUG(name,...) name##_t *name = NULL;
 LIST_OF_PLUGS
 #undef PLUG
 
@@ -28,7 +18,7 @@ int reload_libplug(void){
     fprintf(stderr,"ERROR:could not load %s: %s",libplug_file_name,dlerror());
     return 1;
   }
-  #define PLUG(name) \
+  #define PLUG(name,...) \
     name = dlsym(libplug,#name); \ 
     if(name == NULL){ \
       fprintf(stderr,"ERROR:could not find %s symbol in %s: %s",#name,libplug_file_name,dlerror()); \ 
@@ -36,7 +26,6 @@ int reload_libplug(void){
     } 
   LIST_OF_PLUGS
   #undef PLUG
-  plug_hello();
   return 0;
 }
 
@@ -45,23 +34,26 @@ int main(void)
   if(reload_libplug()){
     return 1;
   }
-  SetConfigFlags(FLAG_WINDOW_UNDECORATED);
   InitWindow(1200,800,"Vamos");
   // SetWindowState(FLAG_WINDOW_MAXIMIZED);
   SetTargetFPS(60);
   InitAudioDevice();
-
-  plug_init(&plug);
+  // char *file_path = "loser.mp3";
+  char *file_path = "/home/ignotus/Desktop/music-visualizer/loser.mp3";
+  plug_init(file_path);
 
   while(!WindowShouldClose()){
     if(IsKeyPressed(KEY_R)){
-      plug_pre_reload(&plug);
+      void *state = plug_pre_reload();
       if(reload_libplug())return 1;
-      plug_post_reload(&plug);
+      plug_post_reload(state);
     }
-    plug_update(&plug);
+    plug_update();
     if(IsKeyPressed(KEY_Q))break;
   }
-  closeFunc(&plug);
+  plug_unload_stream();
+  CloseAudioDevice();
+  CloseWindow();
+
   return 0;
 }

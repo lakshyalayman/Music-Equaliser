@@ -1,11 +1,15 @@
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 #include <raylib.h>
-#include <stddef.h>
 #include <stdio.h>
 #include "plug.h"
 #include <math.h>
+typedef struct {
+  Music music;
+} Plug;
 
+Plug *plug = NULL;
 #define N (1 << 14)
 
 float in[N];
@@ -27,12 +31,6 @@ void callback(void *bufferData,unsigned int frames){
   }
 }
 
-void closeFunc(Music music){
-  UnloadMusicStream(music);
-  CloseAudioDevice();
-  CloseWindow();
-}
-
 void fft(float in[],size_t stride,float complex out[],size_t n){
   assert(n > 0);
   if(n == 1){
@@ -52,50 +50,47 @@ void fft(float in[],size_t stride,float complex out[],size_t n){
   }
 }
 
-void plug_hello(){
-  printf("hello, world\n");
-}
-
-void plug_init(Plug *plug){
-
-  plug->music = LoadMusicStream("loser.mp3");
-  SetMusicVolume(plug->music,0.2);
-  PlayMusicStream(plug->music);
-  // float x = GetMusicTimeLength(plug->music);
-  // printf("%f\n",x/60.0);
+void plug_init(const char *file_path){
+  plug = malloc(sizeof(*plug));
+  assert(plug != NULL && "boo");
+  memset(plug,0,sizeof(*plug));
+  plug->music = LoadMusicStream(file_path);
+  float x = GetMusicTimeLength(plug->music);
+  printf("%f\n",x/60.0);
   printf("frameCount: %u\n",plug->music.frameCount);
   printf("channels: %u\n",plug->music.stream.channels);
   printf("sampleRate: %u\n",plug->music.stream.sampleRate);
   printf("sampleSize: %u\n",plug->music.stream.sampleSize);
+  SetMusicVolume(plug->music,0.2);
+  PlayMusicStream(plug->music);
   AttachAudioStreamProcessor(plug->music.stream,callback);
 }
 
-void plug_set_volume(Plug *plug,float t){
-  SetMusicVolume(plug->music,t);
+void plug_unload_stream(void){
+  UnloadMusicStream(plug->music);
 }
-
-void plug_pre_reload(Plug *plug){
+Plug *plug_pre_reload(void){
   DetachAudioStreamProcessor(plug->music.stream,callback);
+  return plug;
 }
 
-void plug_post_reload(Plug *plug){
+void plug_post_reload(Plug *state){
+  plug = state;
   AttachAudioStreamProcessor(plug->music.stream,callback);
 }
 
 bool marker = true;
-void plug_update(Plug *plug){
+void plug_update(void){
   UpdateMusicStream(plug->music);
 
   if(IsFileDropped()){
     FilePathList dfile = LoadDroppedFiles();
     printf("%i\n%i\n",dfile.capacity,dfile.count);
-    // if(dfile.capacity > 0){
-      const char *dropped_path = dfile.paths[0];
-      StopMusicStream(plug->music);
-      plug->music = LoadMusicStream(dropped_path);
-      PlayMusicStream(plug->music);
-      AttachAudioStreamProcessor(plug->music.stream,callback);
-    // }
+    const char *dropped_path = dfile.paths[0];
+    StopMusicStream(plug->music);
+    plug->music = LoadMusicStream(dropped_path);
+    PlayMusicStream(plug->music);
+    AttachAudioStreamProcessor(plug->music.stream,callback);
     UnloadDroppedFiles(dfile);
   }
 
