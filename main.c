@@ -40,20 +40,18 @@ int main(void)
   InitAudioDevice();
   // char *file_path = "loser.mp3";
   char *file_path = "/home/ignotus/Desktop/music-visualizer/loser.mp3";
-  plug_init(file_path);
+  plug_init();
 
   while(!WindowShouldClose()){
     if(IsKeyPressed(KEY_R)){
       void *state = plug_pre_reload();
       if(reload_libplug())return 1;
       plug_post_reload(state);
+      printf("reloaded\n");
     }
     plug_update();
     if(IsKeyPressed(KEY_Q))break;
   }
   plug_unload_stream();
-  CloseAudioDevice();
-  CloseWindow();
-
   return 0;
 }

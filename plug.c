@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include "plug.h"
 #include <math.h>
+
 typedef struct {
   Music music;
 } Plug;
@@ -24,7 +25,7 @@ float amp(float complex z){
 
 void callback(void *bufferData,unsigned int frames){
   // Frame *fs = bufferData;
-  float (*fs)[2] = bufferData;
+  float (*fs)[plug->music.stream.channels] = bufferData;
   for(size_t i = 0;i<frames;++i){
     memmove(in,in+2,(N-2)*sizeof(in[0]));
     in[N-1] = fs[i][0];
@@ -50,63 +51,65 @@ void fft(float in[],size_t stride,float complex out[],size_t n){
   }
 }
 
-void plug_init(const char *file_path){
+void plug_init(void){
   plug = malloc(sizeof(*plug));
-  assert(plug != NULL && "boo");
+  assert(plug != NULL && "assert failure at plug_init");
   memset(plug,0,sizeof(*plug));
-  plug->music = LoadMusicStream(file_path);
-  float x = GetMusicTimeLength(plug->music);
-  printf("%f\n",x/60.0);
-  printf("frameCount: %u\n",plug->music.frameCount);
-  printf("channels: %u\n",plug->music.stream.channels);
-  printf("sampleRate: %u\n",plug->music.stream.sampleRate);
-  printf("sampleSize: %u\n",plug->music.stream.sampleSize);
-  SetMusicVolume(plug->music,0.2);
-  PlayMusicStream(plug->music);
-  AttachAudioStreamProcessor(plug->music.stream,callback);
 }
 
 void plug_unload_stream(void){
   UnloadMusicStream(plug->music);
+  CloseAudioDevice();
+  CloseWindow();
+  printf("Freeing plug\n");
+  free(plug);
 }
+
 Plug *plug_pre_reload(void){
-  DetachAudioStreamProcessor(plug->music.stream,callback);
+  if(IsMusicValid(plug->music))
+    DetachAudioStreamProcessor(plug->music.stream,callback);
   return plug;
 }
 
 void plug_post_reload(Plug *state){
   plug = state;
-  AttachAudioStreamProcessor(plug->music.stream,callback);
+  if(IsMusicValid(plug->music))
+    AttachAudioStreamProcessor(plug->music.stream,callback);
 }
 
-bool marker = true;
+bool marker = false;
 void plug_update(void){
-  UpdateMusicStream(plug->music);
+  if(IsMusicValid(plug->music)) UpdateMusicStream(plug->music);
 
   if(IsFileDropped()){
     FilePathList dfile = LoadDroppedFiles();
     printf("%i\n%i\n",dfile.capacity,dfile.count);
     const char *dropped_path = dfile.paths[0];
-    StopMusicStream(plug->music);
+    if(IsMusicValid(plug->music)){
+      StopMusicStream(plug->music);
+      UnloadMusicStream(plug->music);
+    }
     plug->music = LoadMusicStream(dropped_path);
-    PlayMusicStream(plug->music);
-    AttachAudioStreamProcessor(plug->music.stream,callback);
-    UnloadDroppedFiles(dfile);
-  }
-
-  if(IsKeyPressed(KEY_SPACE)){
-    if(IsMusicStreamPlaying(plug->music)){
-      PauseMusicStream(plug->music);
-    }else{
-      ResumeMusicStream(plug->music);
+    if(IsMusicValid(plug->music)){
+      PlayMusicStream(plug->music);
+      AttachAudioStreamProcessor(plug->music.stream,callback);
+      UnloadDroppedFiles(dfile);
     }
   }
+
+  if(IsKeyPressed(KEY_SPACE) && IsMusicValid(plug->music)){
+      if(IsMusicStreamPlaying(plug->music)){
+        PauseMusicStream(plug->music);
+      }else{
+        ResumeMusicStream(plug->music);
+      }
+  }
     
-  if(IsKeyPressed(KEY_MINUS)){
+  if(IsKeyPressed(KEY_MINUS) && IsMusicValid(plug->music)){
     if(!marker){
       SetMusicVolume(plug->music,0.0f);
     }else{
-      SetMusicVolume(plug->music,0.2f);
+      SetMusicVolume(plug->music,0.5f);
     }
     marker = !marker;
   }
@@ -116,34 +119,39 @@ void plug_update(void){
     // printf("%d %d\n",w,h);
   BeginDrawing();
     ClearBackground(CLITERAL(Color) {0x18, 0x18, 0x18, 0xFF});
-    fft(in,1,out,N);
-    float max_amp = 0.0f;
+    if(plug->music.ctxData != NULL){
+      fft(in,1,out,N);
+      float max_amp = 0.0f;
 
-    for(size_t i = 0;i<N;++i){
-      float a = amp(out[i]);
-      if(max_amp < a) max_amp = a;
-    }
-
-    float step = 1.1;
-    size_t m = 0;
-    for(float f = 20.0;(size_t) f < N; f*= step)m+=1;
-    
-    float cell_width = (float)w/m;
-    m = 0;
-    // float cell_width = 10;
-    for(float f = 20.0;(size_t)f<N;f*=step){
-      // float t = (float) amp(out[i]); 
-      float f1 = f*step;
-      float a = 0.0f;
-      for(size_t q = (size_t) f;q<N&&q<(size_t) f1;++q){
-        a+= amp(out[q]);
+      for(size_t i = 0;i<N;++i){
+        float a = amp(out[i]);
+        if(max_amp < a) max_amp = a;
       }
-      a/=(size_t)f1 - (size_t) f + 1;
-      float t = a/(max_amp);
-      // float t = a;
-      DrawRectangle(m*cell_width,h-h/2*t,cell_width,h/2*t,GOLD);
-      m+=1;
-      // printf()
+
+      float step = 1.1;
+      size_t m = 0;
+      for(float f = 20.0;(size_t) f < N; f*= step)m+=1;
+    
+      float cell_width = (float)w/m;
+      m = 0;
+      // float cell_width = 10;
+      for(float f = 20.0;(size_t)f<N;f*=step){
+        // float t = (float) amp(out[i]); 
+        float f1 = f*step;
+        float a = 0.0f;
+        for(size_t q = (size_t) f;q<N&&q<(size_t) f1;++q){
+          a+= amp(out[q]);
+        }
+        a/=(size_t)f1 - (size_t) f + 1;
+        float t = a/(max_amp);
+        // float t = a/100;
+        DrawRectangle(m*cell_width,h-h/2*t,cell_width,h/2*t,GOLD);
+        m+=1;
+        // printf()
+      }
+  }else{
+      printf("Mat kar lala\n");
+      DrawText("Drop music",1,1,70,GOLD);
     }
 
   EndDrawing();
