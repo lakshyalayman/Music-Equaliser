@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <raylib.h>
@@ -12,15 +13,16 @@ typedef struct {
 } Plug;
 
 Plug *plug = NULL;
-#define N (1 << 13) 
+#define N (1 << 14) 
 
 float in[N];
+float in1[N];
 float complex out[N];
 
 float amp(float complex z){
-  float a = fabsf(crealf(z));
+  // float a = fabsf(crealf(z));
   float b = fabsf(cimagf(z));
-  if(a > b) return a;
+  // if(a > b) return a;
   return b;
 }
 
@@ -132,7 +134,13 @@ void plug_update(void){
   BeginDrawing();
     ClearBackground(CLITERAL(Color) {0x18, 0x18, 0x18, 0xFF});
     if(plug->music.ctxData != NULL){
-      fft(in,1,out,N);
+      //https://en.wikipedia.org/wiki/Hann_function
+      for(size_t i = 0;i<N;i++){
+        float t = (float)i/N;
+        float hanning = 0.5 - 0.5*cosf(2*PI*t);
+        in1[i] = in[i]*hanning;
+      }
+      fft(in1,1,out,N);
       float max_amp = 0.0f;
 
       for(size_t i = 0;i<N;++i){
