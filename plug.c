@@ -12,7 +12,7 @@ typedef struct {
 } Plug;
 
 Plug *plug = NULL;
-#define N (1 << 14)
+#define N (1 << 13) 
 
 float in[N];
 float complex out[N];
@@ -28,7 +28,7 @@ void callback(void *bufferData,unsigned int frames){
   // Frame *fs = bufferData;
   float (*fs)[plug->music.stream.channels] = bufferData;
   for(size_t i = 0;i<frames;++i){
-    memmove(in,in+2,(N-2)*sizeof(in[0]));
+    memmove(in,in+1,(N-1)*sizeof(in[0]));
     in[N-1] = fs[i][0];
   }
 }
@@ -65,14 +65,15 @@ void plug_src_init(const char *src){
   plug->music = LoadMusicStream(src);
   PlayMusicStream(plug->music);
   AttachAudioStreamProcessor(plug->music.stream,callback);
+  SetMusicVolume(plug->music,0.3f);
 }
 
 void plug_unload_stream(void){
   UnloadMusicStream(plug->music);
+  free(plug);
+  printf("Freeing plug\n");
   CloseAudioDevice();
   CloseWindow();
-  printf("Freeing plug\n");
-  free(plug);
 }
 
 Plug *plug_pre_reload(void){
@@ -120,7 +121,7 @@ void plug_update(void){
     if(!marker){
       SetMusicVolume(plug->music,0.0f);
     }else{
-      SetMusicVolume(plug->music,0.5f);
+      SetMusicVolume(plug->music,0.2f);
     }
     marker = !marker;
   }
@@ -139,26 +140,25 @@ void plug_update(void){
         if(max_amp < a) max_amp = a;
       }
 
-      float step = 1.1;
+      float step = 1.06f;
       size_t m = 0;
-      for(float f = 20.0;(size_t) f < N; f*= step)m+=1;
+      float lowf = 20.0f;
+      for(float f = lowf;(size_t) f < N/2; f=ceilf(f*step))m+=1;
     
       float cell_width = (float)w/m;
       m = 0;
       // float cell_width = 10;
-      for(float f = 20.0;(size_t)f<N;f*=step){
+      for(float f = lowf;(size_t)f<N/2-1;f=ceilf(f*step)){
         // float t = (float) amp(out[i]); 
-        float f1 = f*step;
+        float f1 = ceilf(f*step);
         float a = 0.0f;
-        for(size_t q = (size_t) f;q<N&&q<(size_t) f1;++q){
-          a+= amp(out[q]);
+        for(size_t q = (size_t) f;q<N/2-1&&q<(size_t) f1;++q){
+          float b= amp(out[q]);
+          if(b > a) a = b;
         }
-        a/=(size_t)f1 - (size_t) f + 1;
         float t = a/(max_amp);
-        // float t = a/100;
         DrawRectangle(m*cell_width,h-h/2*t,cell_width,h/2*t,GOLD);
         m+=1;
-        // printf()
       }
   }else{
       if(plug->error) DrawText("Eroor :(",0,0,70,RED);
