@@ -140,7 +140,7 @@ void plug_update(void){
         in1[i] = in[i]*hanning;
       }
       fft(in1,1,out,N);
-      float max_amp = 0.0f;
+      float max_amp = -100.0f;
 
       for(size_t i = 0;i<N;++i){
         float a = amp(out[i]);
@@ -151,19 +151,20 @@ void plug_update(void){
       size_t m = 1;
       float lowf =20.0f;
       for(float f = lowf;(size_t) f <= N/2; f=ceilf(f*step))m+=1;
-    
+      float noise_floor = -7.0f;
       float cell_width = (float)w/m;
       m = 1;
       // float cell_width = 10;
       for(float f = lowf;(size_t)f<=N/2;f=ceilf(f*step)){
         // float t = (float) amp(out[i]); 
         float f1 = ceilf(f*step);
-        float a = 0.0f;
+        float a = noise_floor;
         for(size_t q = (size_t) f;q<=N/2&&q<(size_t) f1;++q){
           float b= amp(out[q]);
           if(b > a) a = b;
         }
-        float t = a/(max_amp);
+        float t = (a-noise_floor)/(max_amp-noise_floor);
+        if(t<0.0f)t = 0.0f;
         DrawRectangle(m*cell_width,h-h/2*t,cell_width,h/2*t,GOLD);
         m+=1;
       }
