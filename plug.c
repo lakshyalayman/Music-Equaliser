@@ -13,7 +13,7 @@ typedef struct {
 } Plug;
 
 Plug *plug = NULL;
-#define N (1 << 14) 
+#define N (1 << 12) 
 
 float in[N];
 float in1[N];
@@ -27,7 +27,7 @@ float amp(float complex z){
 
 void callback(void *bufferData,unsigned int frames){
   // Frame *fs = bufferData;
-  float (*fs)[plug->music.stream.channels] = bufferData;
+  float (*fs)[2] = bufferData;
   for(size_t i = 0;i<frames;++i){
     memmove(in,in+1,(N-1)*sizeof(in[0]));
     in[N-1] = fs[i][0];
@@ -60,9 +60,11 @@ void plug_init(void){
 }
 
 void plug_src_init(const char *src){
-  plug = malloc(sizeof(*plug));
-  assert(plug != NULL && "assert failure at plug_src_init");
-  memset(plug,0,sizeof(*plug));
+  if(plug==NULL){
+    plug = malloc(sizeof(*plug));
+    assert(plug != NULL && "assert failure at plug_src_init");
+    memset(plug,0,sizeof(*plug));
+  }
   plug->music = LoadMusicStream(src);
   PlayMusicStream(plug->music);
   AttachAudioStreamProcessor(plug->music.stream,callback);
@@ -149,7 +151,7 @@ void plug_update(void){
 
       float step = 1.06f;
       size_t m = 1;
-      float lowf =20.0f;
+      float lowf =1.0f;
       for(float f = lowf;(size_t) f <= N/2; f=ceilf(f*step))m+=1;
       float noise_floor = -7.0f;
       float cell_width = (float)w/m;
@@ -165,7 +167,9 @@ void plug_update(void){
         }
         float t = (a-noise_floor)/(max_amp-noise_floor);
         if(t<0.0f)t = 0.0f;
-        DrawRectangle(m*cell_width,h-h/2*t,cell_width,h/2*t,GOLD);
+        float hue = (float)m/100.0f * 360.0f;
+        Color color = ColorFromHSV(hue,0.8f,0.9f);
+        DrawRectangle(m*cell_width,h-h/2*t,cell_width,h/2*t,color);
         m+=1;
       }
   }else{
