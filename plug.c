@@ -166,9 +166,10 @@ void plug_update(void){
           if(b > a) a = b;
         }
         float t = (a-noise_floor)/(max_amp-noise_floor);
-        if(t<0.0f)t = 0.0f;
-        float hue = (float)m/100.0f * 360.0f;
-        Color color = ColorFromHSV(hue,0.8f,0.9f);
+        if(t<0.0f)t = 0.01f;
+        float hue = 240.0f - (240.0f*t);
+        if(hue < 0.0f) hue = 0.0f;
+        Color color = ColorFromHSV(hue,1.0f,1.0f);
         DrawRectangle(m*cell_width,h-h/2*t,cell_width,h/2*t,color);
         m+=1;
       }
