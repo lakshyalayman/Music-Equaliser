@@ -20,10 +20,9 @@ float in1[N];
 float complex out[N];
 
 float amp(float complex z){
-  // float a = fabsf(crealf(z));
-  float b = fabsf(cimagf(z));
-  // if(a > b) return a;
-  return b;
+  float a = crealf(z);
+  float b = cimagf(z);
+  return logf(a*a + b*b);
 }
 
 void callback(void *bufferData,unsigned int frames){
@@ -136,7 +135,7 @@ void plug_update(void){
     if(plug->music.ctxData != NULL){
       //https://en.wikipedia.org/wiki/Hann_function
       for(size_t i = 0;i<N;i++){
-        float t = (float)i/N;
+        float t = (float)i/(N-1);
         float hanning = 0.5 - 0.5*cosf(2*PI*t);
         in1[i] = in[i]*hanning;
       }
@@ -149,18 +148,18 @@ void plug_update(void){
       }
 
       float step = 1.06f;
-      size_t m = 0;
-      float lowf = 20.0f;
-      for(float f = lowf;(size_t) f < N/2; f=ceilf(f*step))m+=1;
+      size_t m = 1;
+      float lowf =20.0f;
+      for(float f = lowf;(size_t) f <= N/2; f=ceilf(f*step))m+=1;
     
       float cell_width = (float)w/m;
-      m = 0;
+      m = 1;
       // float cell_width = 10;
-      for(float f = lowf;(size_t)f<N/2-1;f=ceilf(f*step)){
+      for(float f = lowf;(size_t)f<=N/2;f=ceilf(f*step)){
         // float t = (float) amp(out[i]); 
         float f1 = ceilf(f*step);
         float a = 0.0f;
-        for(size_t q = (size_t) f;q<N/2-1&&q<(size_t) f1;++q){
+        for(size_t q = (size_t) f;q<=N/2&&q<(size_t) f1;++q){
           float b= amp(out[q]);
           if(b > a) a = b;
         }

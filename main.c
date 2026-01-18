@@ -39,7 +39,7 @@ int main(void)
   SetTargetFPS(60);
   InitAudioDevice();
   // char *file_path = "loser.mp3";
-  char *file_path = "loser.mp3";
+  char *file_path = "daft.mp3";
 
   /*
     plug_init for drag and drop setup by default 
