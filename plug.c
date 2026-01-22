@@ -13,7 +13,7 @@ typedef struct {
 } Plug;
 
 Plug *plug = NULL;
-#define N (1 << 12) 
+#define N (1 << 13) 
 
 float in[N];
 float in1[N];
