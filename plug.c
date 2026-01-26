@@ -7,6 +7,7 @@
 #include "plug.h"
 #include <math.h>
 
+bool filter = false;
 //Plug struct for hot reloading,plug->music for drag and drop
 typedef struct {
   bool error;
@@ -23,6 +24,7 @@ float complex out[N];
 float out_log[N];
 float out_smooth[N];
 
+// low pass filter callback
 // Amplitude funciton for a complex input which is under root of square of both real and imaginary part of the complex number
 float amp(float complex z){
   float a = crealf(z);
@@ -37,6 +39,20 @@ void callback(void *bufferData,unsigned int frames){
   for(size_t i = 0;i<frames;++i){
     memmove(in,in+1,(N-1)*sizeof(in[0]));
     in[N-1] = fs[i][0];
+  }
+}
+
+void callbackLPF(void *bufferdata,unsigned int frames){
+  float(*fs)[2] = bufferdata;
+  float load = 0.0f;
+  const float cutoff = 1000.0f/44100.0f;
+  const float k = cutoff/(cutoff + 0.1591549431f);
+  for(size_t i = 0;i<frames;++i){
+    // const float change = fs[i][0];
+    load += k*(fs[i][0] - load);
+    fs[i][0] = load;
+    memmove(in,in+1,(N-1)*sizeof(in[0]));
+    in[N-1] = load;
   }
 }
 
@@ -88,7 +104,10 @@ void plug_unload_stream(void){
   if(plug!=NULL){
     if(IsMusicValid(plug->music)){
       StopMusicStream(plug->music);
-      DetachAudioStreamProcessor(plug->music.stream,callback);
+      if(filter == false)
+        DetachAudioStreamProcessor(plug->music.stream,callback);
+      else
+        DetachAudioStreamProcessor(plug->music.stream,callbackLPF);
       UnloadMusicStream(plug->music);
     }
     free(plug);
@@ -143,7 +162,11 @@ void plug_update(void){
         ResumeMusicStream(plug->music);
       }
   }
-    
+  if(IsKeyPressed(KEY_COMMA)){
+    DetachAudioStreamProcessor(plug->music.stream,callback);
+    AttachAudioStreamProcessor(plug->music.stream,callbackLPF);
+    filter = true;
+  } 
   if(IsKeyPressed(KEY_MINUS) && IsMusicValid(plug->music)){
     if(!marker){
       SetMusicVolume(plug->music,0.0f);
@@ -207,8 +230,8 @@ void plug_update(void){
           h
         };
         DrawLineEx(startPos,endPos,cell_width/2,color);
-        // DrawCircleV(startPos,cell_width*sqrtf(t),color);
-        DrawCircleLinesV(startPos,cell_width*sqrtf(t), color);
+        DrawCircleV(startPos,cell_width*sqrtf(t),color);
+        // DrawCircleLinesV(startPos,cell_width*sqrtf(t), color);
 
       }
   }else{

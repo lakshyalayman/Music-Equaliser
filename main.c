@@ -1,4 +1,5 @@
 #include <dlfcn.h>
+#include <raylib.h>
 #include <stdio.h>
 #include "plug.h"
 
@@ -36,6 +37,7 @@ int main(void)
   if(reload_libplug()){
     return 1;
   }
+  SetConfigFlags(FLAG_MSAA_4X_HINT);
   InitWindow(1200,800,"Vamos");
   SetTargetFPS(60);
   InitAudioDevice();
