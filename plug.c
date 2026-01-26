@@ -15,7 +15,7 @@ typedef struct {
 
 Plug *plug = NULL;
 
-#define N (1 << 14) 
+#define N (1 << 13) 
 
 float in[N];
 float in1[N];
@@ -189,14 +189,15 @@ void plug_update(void){
         // DrawRectangle(i*cell_width,h-h/2*t,ceilf(cell_width),h/2*t,color);
         Vector2 startPos = {
           cell_width*(0.5 + i),
-          h-h/2*t
+          h-7*h/8*t
         };
         Vector2 endPos = {
           cell_width*(0.5 + i),
           h
         };
         DrawLineEx(startPos,endPos,cell_width/2,color);
-        DrawCircleV(startPos,cell_width*t*1.5,color);
+        // DrawCircleV(startPos,cell_width*sqrtf(t),color);
+        DrawCircleLinesV(startPos,cell_width*sqrtf(t), color);
 
       }
   }else{
