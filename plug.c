@@ -15,7 +15,7 @@ typedef struct {
 
 Plug *plug = NULL;
 
-#define N (1 << 13) 
+#define N (1 << 14) 
 
 float in[N];
 float in1[N];
@@ -186,7 +186,18 @@ void plug_update(void){
         float hue = 240.0f - (240.0f*t);
         if(hue < 0.0f) hue = 0.0f;
         Color color = ColorFromHSV(hue,1.0f,1.0f);
-        DrawRectangle(i*cell_width,h-h/2*t,ceilf(cell_width),h/2*t,color);
+        // DrawRectangle(i*cell_width,h-h/2*t,ceilf(cell_width),h/2*t,color);
+        Vector2 startPos = {
+          cell_width*(0.5 + i),
+          h-h/2*t
+        };
+        Vector2 endPos = {
+          cell_width*(0.5 + i),
+          h
+        };
+        DrawLineEx(startPos,endPos,cell_width/2,color);
+        DrawCircleV(startPos,cell_width*t*1.5,color);
+
       }
   }else{
       if(plug->error) DrawText("Eroor :(",0,0,70,RED);
