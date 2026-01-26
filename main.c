@@ -2,9 +2,11 @@
 #include <stdio.h>
 #include "plug.h"
 
+//dynamic library
 const char *libplug_file_name = "libplug.so";
 void *libplug = NULL;
 
+//X-macro
 #define PLUG(name,...) name##_t *name = NULL;
 LIST_OF_PLUGS
 #undef PLUG
@@ -35,10 +37,8 @@ int main(void)
     return 1;
   }
   InitWindow(1200,800,"Vamos");
-  // SetWindowState(FLAG_WINDOW_MAXIMIZED);
   SetTargetFPS(60);
   InitAudioDevice();
-  // char *file_path = "loser.mp3";
   char *file_path = "m1.mp3";
 
   /*
