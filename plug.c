@@ -88,6 +88,7 @@ void plug_unload_stream(void){
   if(plug!=NULL){
     if(IsMusicValid(plug->music)){
       StopMusicStream(plug->music);
+      DetachAudioStreamProcessor(plug->music.stream,callback);
       UnloadMusicStream(plug->music);
     }
     free(plug);
