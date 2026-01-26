@@ -20,6 +20,8 @@ Plug *plug = NULL;
 float in[N];
 float in1[N];
 float complex out[N];
+float out_log[N];
+float out_smooth[N];
 
 // Amplitude funciton for a complex input which is under root of square of both real and imaginary part of the complex number
 float amp(float complex z){
@@ -142,6 +144,7 @@ void plug_update(void){
 
   int w = GetRenderWidth();
   float h = (float)GetRenderHeight();
+  float dt = GetFrameTime();
   BeginDrawing();
     ClearBackground(CLITERAL(Color) {0x18, 0x18, 0x18, 0xFF});
     if(plug->music.ctxData != NULL){
@@ -152,21 +155,14 @@ void plug_update(void){
         in1[i] = in[i]*hanning;
       }
       fft(in1,1,out,N);
-      float max_amp = 0.0f;
 
-      for(size_t i = 0;i<N;++i){
-        float a = amp(out[i]);
-        if(max_amp < a) max_amp = a;
-      }
-
+      float max_amp = 1.0f;
       float step = 1.06f;
-      size_t m = 1;
+      size_t m = 0;
       float lowf =1.0f;
-      for(float f = lowf;(size_t) f <= N/2; f=ceilf(f*step))m+=1;
       float noise_floor = -7.0f;
+      float smoothness = 10.0f;
       
-      float cell_width = (float)w/m;
-      m = 1;
       for(float f = lowf;(size_t)f<=N/2;f=ceilf(f*step)){
         float f1 = ceilf(f*step);
         float a = 0.0f;
@@ -174,14 +170,23 @@ void plug_update(void){
           float b= amp(out[q]);
           if(b > a) a = b;
         }
-        // float t = (a-noise_floor)/(max_amp-noise_floor);
-        float t = a/(max_amp);
-        // if(t<0.0f)t = 0.01f;
+        if(max_amp < a) max_amp = a;
+        out_log[m++] = a;
+      }
+      for(size_t i = 0;i<m;i++){
+        out_log[i] /= max_amp;
+      }
+      float cell_width = (float)w/m;
+      
+      for(size_t i = 0;i<m;i++){
+        out_smooth[i] += smoothness*(out_log[i] - out_smooth[i])*dt;
+      }
+      for(size_t i = 0;i<m;i++){
+        float t = out_smooth[i];
         float hue = 240.0f - (240.0f*t);
         if(hue < 0.0f) hue = 0.0f;
         Color color = ColorFromHSV(hue,1.0f,1.0f);
-        DrawRectangle(m*cell_width,h-h/2*t,cell_width,h/2*t,color);
-        m+=1;
+        DrawRectangle(i*cell_width,h-h/2*t,ceilf(cell_width),h/2*t,color);
       }
   }else{
       if(plug->error) DrawText("Eroor :(",0,0,70,RED);
