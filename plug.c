@@ -44,15 +44,18 @@ void callback(void *bufferData,unsigned int frames){
 
 void callbackLPF(void *bufferdata,unsigned int frames){
   float(*fs)[2] = bufferdata;
-  float load = 0.0f;
+  float loadL = 0.0f;
+  float loadR = 0.0f;
   const float cutoff = 1000.0f/44100.0f;
   const float k = cutoff/(cutoff + 0.1591549431f);
   for(size_t i = 0;i<frames;++i){
     // const float change = fs[i][0];
-    load += k*(fs[i][0] - load);
-    fs[i][0] = load;
+    loadL += k*(fs[i][0] - loadL);
+    loadR += k*(fs[i][1] - loadR);
+    fs[i][0] = loadL;
+    fs[i][1] = loadR;
     memmove(in,in+1,(N-1)*sizeof(in[0]));
-    in[N-1] = load;
+    in[N-1] = loadL;
   }
 }
 
