@@ -74,17 +74,26 @@ void plug_src_init(const char *src){
     assert(plug != NULL && "assert failure at plug_src_init");
     memset(plug,0,sizeof(*plug));
   }
+  if(IsMusicValid(plug->music))UnloadMusicStream(plug->music);
   plug->music = LoadMusicStream(src);
-  PlayMusicStream(plug->music);
-  AttachAudioStreamProcessor(plug->music.stream,callback);
-  SetMusicVolume(plug->music,0.3f);
+  if(IsMusicValid(plug->music)){
+    PlayMusicStream(plug->music);
+    AttachAudioStreamProcessor(plug->music.stream,callback);
+    SetMusicVolume(plug->music,0.3f);
+  }
 }
 
 // ending function unloads everything 
 void plug_unload_stream(void){
-  UnloadMusicStream(plug->music);
-  free(plug);
-  printf("Freeing plug\n");
+  if(plug!=NULL){
+    if(IsMusicValid(plug->music)){
+      StopMusicStream(plug->music);
+      UnloadMusicStream(plug->music);
+    }
+    free(plug);
+    printf("Freeing plug\n");
+    plug=NULL;
+  }
   CloseAudioDevice();
   CloseWindow();
 }
@@ -113,6 +122,7 @@ void plug_update(void){
     const char *dropped_path = dfile.paths[0];
     if(IsMusicValid(plug->music)){
       StopMusicStream(plug->music);
+      DetachAudioStreamProcessor(plug->music.stream,callback);
       UnloadMusicStream(plug->music);
     }
     plug->music = LoadMusicStream(dropped_path);
@@ -120,8 +130,8 @@ void plug_update(void){
       plug->error = false;
       PlayMusicStream(plug->music);
       AttachAudioStreamProcessor(plug->music.stream,callback);
-      UnloadDroppedFiles(dfile);
     }else plug->error = true;
+    UnloadDroppedFiles(dfile);
   }
 
   // Play pause
