@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <raylib.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -277,7 +276,7 @@ void plug_update(void){
         Color color = ColorFromHSV(hue,1.0f,1.0f);
         Vector2 startPos = {
           cell_width*(0.5 + i),
-          h-h*t
+          h-(h*t*sqrtf(plug->volume))
         };
         Vector2 endPos = {
           cell_width*(0.5 + i),
