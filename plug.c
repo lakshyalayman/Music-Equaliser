@@ -283,8 +283,8 @@ void plug_update(void){
           h
         };
         DrawLineEx(startPos,endPos,cell_width/2,color);
-        DrawCircleV(startPos,cell_width*sqrtf(t),color);
-        // DrawCircleLinesV(startPos,cell_width*sqrtf(t), color);
+        DrawCircleV(startPos,cell_width*(t),color);
+        DrawCircleLinesV(startPos,cell_width*(t)*2, color);
 
       }
   }else{
