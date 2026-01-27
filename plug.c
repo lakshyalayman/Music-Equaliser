@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <raylib.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -16,6 +17,14 @@ typedef struct {
 
 Plug *plug = NULL;
 
+typedef enum {
+  CALLBACK,
+  CALLBACK_LPF,
+  CALLBACK_HPF,
+} filterType;
+
+filterType currentFilter = CALLBACK;
+
 #define N (1 << 13) 
 
 float in[N];
@@ -31,6 +40,7 @@ float amp(float complex z){
   float b = cimagf(z);
   return logf(a*a + b*b);
 }
+
 
 //Callback function which accepts the music buffer and frames, frames is the number of frames per second, the function iterates over the number of frames and performs a ring buffer by placing a single sample in the buffer and removing the other from other side of the buffer
 void callback(void *bufferData,unsigned int frames){
@@ -57,6 +67,14 @@ void callbackLPF(void *bufferdata,unsigned int frames){
   }
 }
 
+void switchFilter(Music music,filterType nextFilter){
+  if(!IsMusicValid(music)) return;
+  if(currentFilter == CALLBACK)DetachAudioStreamProcessor(music.stream, callback);
+  else if(currentFilter==CALLBACK_LPF)DetachAudioStreamProcessor(music.stream,callbackLPF);
+
+  if(nextFilter == CALLBACK)AttachAudioStreamProcessor(music.stream, callback);
+  else if(nextFilter == CALLBACK_LPF)AttachAudioStreamProcessor(music.stream,callbackLPF);
+}
 // A fast fourier transform implementation 
 void fft(float in[],size_t stride,float complex out[],size_t n){
   assert(n > 0);
@@ -138,6 +156,7 @@ void plug_update(void){
 
   // drag and drop 
   if(IsFileDropped()){
+    printf("file drop triggered\n");
     FilePathList dfile = LoadDroppedFiles();
     printf("%i\n%i\n",dfile.capacity,dfile.count);
     const char *dropped_path = dfile.paths[0];
@@ -164,10 +183,13 @@ void plug_update(void){
       }
   }
   if(IsKeyPressed(KEY_COMMA)){
-    DetachAudioStreamProcessor(plug->music.stream,callback);
-    AttachAudioStreamProcessor(plug->music.stream,callbackLPF);
-    filter = true;
+    switchFilter(plug->music,CALLBACK_LPF);
+    currentFilter = CALLBACK_LPF;
   } 
+  if(IsKeyPressed(KEY_PERIOD)){
+    switchFilter(plug->music,CALLBACK);
+    currentFilter = CALLBACK;
+  }
   if(IsKeyPressed(KEY_MINUS) && IsMusicValid(plug->music)){
     if(!marker){
       SetMusicVolume(plug->music,0.0f);
