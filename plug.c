@@ -1,13 +1,10 @@
 #include <assert.h>
-#include <raylib.h>
-#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include "plug.h"
 #include <math.h>
 
-bool filter = false;
 //Plug struct for hot reloading,plug->music for drag and drop
 typedef struct {
   bool error;
@@ -69,7 +66,7 @@ void callbackLPF(void *bufferdata,unsigned int frames){
 
 void callbackHPF(void *bufferData,unsigned int frames){
   float(*fs)[2] = bufferData;
-  const float cutoff = 4000.0f/44100.0f;
+  const float cutoff = 3330.0f/44100.0f;
   const float k = cutoff/(cutoff+0.1591549431f);
   for(size_t i = 0;i<frames;++i){
     plug->loadL += k*(fs[i][0] - plug->loadL);   
@@ -139,10 +136,12 @@ void plug_unload_stream(void){
   if(plug!=NULL){
     if(IsMusicValid(plug->music)){
       StopMusicStream(plug->music);
-      if(filter == false)
+      if(currentFilter == CALLBACK)
         DetachAudioStreamProcessor(plug->music.stream,callback);
-      else
+      else if(currentFilter == CALLBACK_LPF)
         DetachAudioStreamProcessor(plug->music.stream,callbackLPF);
+      else if(currentFilter == CALLBACK_HPF)
+        DetachAudioStreamProcessor(plug->music.stream,callbackHPF);
       UnloadMusicStream(plug->music);
     }
     free(plug);
