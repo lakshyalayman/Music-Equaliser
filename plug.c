@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <raylib.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -11,6 +12,7 @@ typedef struct {
   Music music;
   float loadL;
   float loadR;
+  float volume;
 } Plug;
 
 Plug *plug = NULL;
@@ -128,7 +130,8 @@ void plug_src_init(const char *src){
     PlayMusicStream(plug->music);
     printf("%i\n",plug->music.stream.sampleRate);
     AttachAudioStreamProcessor(plug->music.stream,callback);
-    SetMusicVolume(plug->music,0.3f);
+    plug->volume = 0.5f;
+    SetMusicVolume(plug->music,plug->volume);
   }
 }
 
@@ -198,6 +201,8 @@ void plug_update(void){
         ResumeMusicStream(plug->music);
       }
   }
+
+  // Filter (Normal + LPF + HPF)
   if(IsKeyPressed(KEY_COMMA)){
     switchFilter(plug->music,CALLBACK_LPF);
     currentFilter = CALLBACK_LPF;
@@ -210,13 +215,20 @@ void plug_update(void){
     switchFilter(plug->music,CALLBACK_HPF);
     currentFilter = CALLBACK_HPF;
   }
-  if(IsKeyPressed(KEY_MINUS) && IsMusicValid(plug->music)){
-    if(!marker){
-      SetMusicVolume(plug->music,0.0f);
-    }else{
-      SetMusicVolume(plug->music,0.2f);
+  
+
+  // Volume Controls (default = 0.5f);
+  if(IsKeyPressed(KEY_UP) && IsMusicValid(plug->music)){
+    if(plug->volume < 1.0f){
+      plug->volume += 0.1f;
+      SetMusicVolume(plug->music,plug->volume);
     }
-    marker = !marker;
+  }
+  if(IsKeyPressed(KEY_DOWN) && IsMusicValid(plug->music)){
+    if(plug->volume > 0.1f){
+      plug->volume -= 0.1f;
+      SetMusicVolume(plug->music,plug->volume);
+    }
   }
 
   int w = GetRenderWidth();
@@ -263,10 +275,9 @@ void plug_update(void){
         float hue = 240.0f - (240.0f*t);
         if(hue < 0.0f) hue = 0.0f;
         Color color = ColorFromHSV(hue,1.0f,1.0f);
-        // DrawRectangle(i*cell_width,h-h/2*t,ceilf(cell_width),h/2*t,color);
         Vector2 startPos = {
           cell_width*(0.5 + i),
-          h-7*h/8*t
+          h-h*t
         };
         Vector2 endPos = {
           cell_width*(0.5 + i),
