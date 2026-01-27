@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <raylib.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -33,7 +34,6 @@ float complex out[N];
 float out_log[N];
 float out_smooth[N];
 
-// low pass filter callback
 // Amplitude funciton for a complex input which is under root of square of both real and imaginary part of the complex number
 float amp(float complex z){
   float a = crealf(z);
@@ -67,13 +67,29 @@ void callbackLPF(void *bufferdata,unsigned int frames){
   }
 }
 
+void callbackHPF(void *bufferData,unsigned int frames){
+  float(*fs)[2] = bufferData;
+  const float cutoff = 4000.0f/44100.0f;
+  const float k = cutoff/(cutoff+0.1591549431f);
+  for(size_t i = 0;i<frames;++i){
+    plug->loadL += k*(fs[i][0] - plug->loadL);   
+    plug->loadR += k*(fs[i][1] - plug->loadR);
+    fs[i][0] = fs[i][0] - plug->loadL;
+    fs[i][1] = fs[i][1] - plug->loadR;
+    memmove(in,in+1,(N-1)*sizeof(in[0]));
+    in[N-1] = fs[i][0];
+  }
+}
+
 void switchFilter(Music music,filterType nextFilter){
   if(!IsMusicValid(music)) return;
   if(currentFilter == CALLBACK)DetachAudioStreamProcessor(music.stream, callback);
   else if(currentFilter==CALLBACK_LPF)DetachAudioStreamProcessor(music.stream,callbackLPF);
+  else if(currentFilter==CALLBACK_HPF)DetachAudioStreamProcessor(music.stream,callbackHPF);
 
   if(nextFilter == CALLBACK)AttachAudioStreamProcessor(music.stream, callback);
   else if(nextFilter == CALLBACK_LPF)AttachAudioStreamProcessor(music.stream,callbackLPF);
+  else if(nextFilter == CALLBACK_HPF)AttachAudioStreamProcessor(music.stream,callbackHPF);
 }
 // A fast fourier transform implementation 
 void fft(float in[],size_t stride,float complex out[],size_t n){
@@ -189,6 +205,10 @@ void plug_update(void){
   if(IsKeyPressed(KEY_PERIOD)){
     switchFilter(plug->music,CALLBACK);
     currentFilter = CALLBACK;
+  }
+  if(IsKeyPressed(KEY_SLASH)){
+    switchFilter(plug->music,CALLBACK_HPF);
+    currentFilter = CALLBACK_HPF;
   }
   if(IsKeyPressed(KEY_MINUS) && IsMusicValid(plug->music)){
     if(!marker){
