@@ -51,7 +51,7 @@ void callback(void *bufferData,unsigned int frames){
 
 void callbackLPF(void *bufferdata,unsigned int frames){
   float(*fs)[2] = bufferdata;
-  const float cutoff = 1000.0f/44100.0f;
+  const float cutoff = 1000.0f/(plug->music.stream.sampleRate);
   const float k = cutoff/(cutoff + 0.1591549431f);
   for(size_t i = 0;i<frames;++i){
     // const float change = fs[i][0];
@@ -66,7 +66,7 @@ void callbackLPF(void *bufferdata,unsigned int frames){
 
 void callbackHPF(void *bufferData,unsigned int frames){
   float(*fs)[2] = bufferData;
-  const float cutoff = 3330.0f/44100.0f;
+  const float cutoff = 3330.0f/(plug->music.stream.sampleRate);
   const float k = cutoff/(cutoff+0.1591549431f);
   for(size_t i = 0;i<frames;++i){
     plug->loadL += k*(fs[i][0] - plug->loadL);   
@@ -126,6 +126,7 @@ void plug_src_init(const char *src){
   plug->music = LoadMusicStream(src);
   if(IsMusicValid(plug->music)){
     PlayMusicStream(plug->music);
+    printf("%i\n",plug->music.stream.sampleRate);
     AttachAudioStreamProcessor(plug->music.stream,callback);
     SetMusicVolume(plug->music,0.3f);
   }
