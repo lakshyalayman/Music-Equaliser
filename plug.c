@@ -1,8 +1,6 @@
 #include <assert.h>
-#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <raylib.h>
 #include <stdio.h>
 #include "plug.h"
 #include <math.h>
@@ -12,6 +10,8 @@ bool filter = false;
 typedef struct {
   bool error;
   Music music;
+  float loadL;
+  float loadR;
 } Plug;
 
 Plug *plug = NULL;
@@ -44,18 +44,16 @@ void callback(void *bufferData,unsigned int frames){
 
 void callbackLPF(void *bufferdata,unsigned int frames){
   float(*fs)[2] = bufferdata;
-  float loadL = 0.0f;
-  float loadR = 0.0f;
   const float cutoff = 1000.0f/44100.0f;
   const float k = cutoff/(cutoff + 0.1591549431f);
   for(size_t i = 0;i<frames;++i){
     // const float change = fs[i][0];
-    loadL += k*(fs[i][0] - loadL);
-    loadR += k*(fs[i][1] - loadR);
-    fs[i][0] = loadL;
-    fs[i][1] = loadR;
+    plug->loadL += k*(fs[i][0] - plug->loadL);
+    plug->loadR += k*(fs[i][1] - plug->loadR);
+    fs[i][0] = plug->loadL;
+    fs[i][1] = plug->loadR;
     memmove(in,in+1,(N-1)*sizeof(in[0]));
-    in[N-1] = loadL;
+    in[N-1] = plug->loadL;
   }
 }
 
