@@ -38,6 +38,7 @@ int main(void)
     return 1;
   }
   SetConfigFlags(FLAG_MSAA_4X_HINT);
+  SetConfigFlags(FLAG_WINDOW_RESIZABLE);
   InitWindow(1200,800,"Vamos");
   SetTargetFPS(60);
   InitAudioDevice();
