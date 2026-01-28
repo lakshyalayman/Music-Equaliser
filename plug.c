@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <raylib.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -79,6 +80,13 @@ void callbackHPF(void *bufferData,unsigned int frames){
   }
 }
 
+void detachFilter(Music music,filterType filter){
+  if(!IsMusicValid(music)) return;
+  if(currentFilter == CALLBACK)DetachAudioStreamProcessor(music.stream, callback);
+  else if(currentFilter==CALLBACK_LPF)DetachAudioStreamProcessor(music.stream,callbackLPF);
+  else if(currentFilter==CALLBACK_HPF)DetachAudioStreamProcessor(music.stream,callbackHPF);
+}
+
 void switchFilter(Music music,filterType nextFilter){
   if(!IsMusicValid(music)) return;
   if(currentFilter == CALLBACK)DetachAudioStreamProcessor(music.stream, callback);
@@ -123,7 +131,10 @@ void plug_src_init(const char *src){
     assert(plug != NULL && "assert failure at plug_src_init");
     memset(plug,0,sizeof(*plug));
   }
-  if(IsMusicValid(plug->music))UnloadMusicStream(plug->music);
+  if(IsMusicValid(plug->music)){
+    detachFilter(plug->music,currentFilter);
+    UnloadMusicStream(plug->music);
+  }
   plug->music = LoadMusicStream(src);
   if(IsMusicValid(plug->music)){
     PlayMusicStream(plug->music);
@@ -139,12 +150,7 @@ void plug_unload_stream(void){
   if(plug!=NULL){
     if(IsMusicValid(plug->music)){
       StopMusicStream(plug->music);
-      if(currentFilter == CALLBACK)
-        DetachAudioStreamProcessor(plug->music.stream,callback);
-      else if(currentFilter == CALLBACK_LPF)
-        DetachAudioStreamProcessor(plug->music.stream,callbackLPF);
-      else if(currentFilter == CALLBACK_HPF)
-        DetachAudioStreamProcessor(plug->music.stream,callbackHPF);
+      detachFilter(plug->music, currentFilter);
       UnloadMusicStream(plug->music);
     }
     free(plug);
@@ -158,7 +164,7 @@ void plug_unload_stream(void){
 // Pre reload and post reload functions for hot reloading 
 Plug *plug_pre_reload(void){
   if(IsMusicValid(plug->music))
-    DetachAudioStreamProcessor(plug->music.stream,callback);
+    detachFilter(plug->music,currentFilter);
   return plug;
 }
 void plug_post_reload(Plug *state){
@@ -180,14 +186,17 @@ void plug_update(void){
     const char *dropped_path = dfile.paths[0];
     if(IsMusicValid(plug->music)){
       StopMusicStream(plug->music);
-      DetachAudioStreamProcessor(plug->music.stream,callback);
+      detachFilter(plug->music,currentFilter);
       UnloadMusicStream(plug->music);
+      plug->music = (Music){0};
     }
     plug->music = LoadMusicStream(dropped_path);
     if(IsMusicValid(plug->music)){
       plug->error = false;
       PlayMusicStream(plug->music);
+      currentFilter = CALLBACK;
       AttachAudioStreamProcessor(plug->music.stream,callback);
+      SetMusicVolume(plug->music,plug->volume);
     }else plug->error = true;
     UnloadDroppedFiles(dfile);
   }

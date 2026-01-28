@@ -52,12 +52,6 @@ int main(void)
   // plug_init();
   plug_src_init(file_path);
   while(!WindowShouldClose()){
-    if(IsFileDropped()){
-      FilePathList droppedName = LoadDroppedFiles();
-      char *name = droppedName.paths[0];
-      printf("%s\n",name);
-      UnloadDroppedFiles(droppedName);
-    }
     if(IsKeyPressed(KEY_R)){
       void *state = plug_pre_reload();
       if(reload_libplug())return 1;
