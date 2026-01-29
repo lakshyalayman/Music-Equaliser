@@ -185,12 +185,8 @@ void plug_update(void){
     marker = !marker;
   }
   if(marker){
-    if(pan < 0.1f){
-      sign = 1.0f;
-    }else if(pan > 0.9f){
-      sign = -1.0f;
-    }
-    pan = pan + (sign*dt*panSpeed);
+    float time = GetTime();
+    pan = 0.5f + 0.5f*sinf(time*2.5);
     SetMusicPan(plug->music,pan);
   }else{
     pan += (0.5f-pan)*10.0f*dt;
