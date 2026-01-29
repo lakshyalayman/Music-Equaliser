@@ -80,7 +80,7 @@ void callbackHPF(void *bufferData,unsigned int frames){
   }
 }
 
-void detachFilter(Music music,filterType filter){
+void detachFilter(Music music){
   if(!IsMusicValid(music)) return;
   if(currentFilter == CALLBACK)DetachAudioStreamProcessor(music.stream, callback);
   else if(currentFilter==CALLBACK_LPF)DetachAudioStreamProcessor(music.stream,callbackLPF);
@@ -132,7 +132,7 @@ void plug_src_init(const char *src){
     memset(plug,0,sizeof(*plug));
   }
   if(IsMusicValid(plug->music)){
-    detachFilter(plug->music,currentFilter);
+    detachFilter(plug->music);
     UnloadMusicStream(plug->music);
   }
   plug->music = LoadMusicStream(src);
@@ -150,7 +150,7 @@ void plug_unload_stream(void){
   if(plug!=NULL){
     if(IsMusicValid(plug->music)){
       StopMusicStream(plug->music);
-      detachFilter(plug->music, currentFilter);
+      detachFilter(plug->music);
       UnloadMusicStream(plug->music);
     }
     free(plug);
@@ -164,7 +164,7 @@ void plug_unload_stream(void){
 // Pre reload and post reload functions for hot reloading 
 Plug *plug_pre_reload(void){
   if(IsMusicValid(plug->music))
-    detachFilter(plug->music,currentFilter);
+    detachFilter(plug->music);
   return plug;
 }
 void plug_post_reload(Plug *state){
@@ -173,12 +173,30 @@ void plug_post_reload(Plug *state){
     AttachAudioStreamProcessor(plug->music.stream,callback);
 }
 
+float pan = 0.5f;
+float sign = -1.0f;
+float panSpeed = 1.1;
 //main function for updating each frame and draw the visualization
 bool marker = false;
 void plug_update(void){
   if(IsMusicValid(plug->music)) UpdateMusicStream(plug->music);
-
-  // drag and drop 
+  float dt = GetFrameTime();
+  if(IsKeyPressed(KEY_P)){
+    marker = !marker;
+  }
+  if(marker){
+    if(pan < 0.1f){
+      sign = 1.0f;
+    }else if(pan > 0.9f){
+      sign = -1.0f;
+    }
+    pan = pan + (sign*dt*panSpeed);
+    SetMusicPan(plug->music,pan);
+  }else{
+    pan += (0.5f-pan)*10.0f*dt;
+    SetMusicPan(plug->music,pan);
+  }
+  //drag and drop 
   if(IsFileDropped()){
     printf("file drop triggered\n");
     FilePathList dfile = LoadDroppedFiles();
@@ -186,7 +204,7 @@ void plug_update(void){
     const char *dropped_path = dfile.paths[0];
     if(IsMusicValid(plug->music)){
       StopMusicStream(plug->music);
-      detachFilter(plug->music,currentFilter);
+      detachFilter(plug->music);
       UnloadMusicStream(plug->music);
       plug->music = (Music){0};
     }
@@ -225,6 +243,7 @@ void plug_update(void){
   }
   
 
+
   // Volume Controls (default = 0.5f);
   if(IsKeyPressed(KEY_UP) && IsMusicValid(plug->music)){
     if(plug->volume < 1.0f){
@@ -241,7 +260,6 @@ void plug_update(void){
 
   int w = GetRenderWidth();
   float h = (float)GetRenderHeight();
-  float dt = GetFrameTime();
   BeginDrawing();
     ClearBackground(CLITERAL(Color) {0x18, 0x18, 0x18, 0xFF});
     if(plug->music.ctxData != NULL){
@@ -257,7 +275,6 @@ void plug_update(void){
       float step = 1.06f;
       size_t m = 0;
       float lowf =1.0f;
-      float noise_floor = -7.0f;
       float smoothness = 10.0f;
       
       for(float f = lowf;(size_t)f<=N/2;f=ceilf(f*step)){
