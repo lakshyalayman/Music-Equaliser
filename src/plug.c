@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <raylib.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -21,11 +22,12 @@ typedef enum {
   CALLBACK,
   CALLBACK_LPF,
   CALLBACK_HPF,
+  CALLBACK_PAN,
 } filterType;
 
 filterType currentFilter = CALLBACK;
 
-#define N (1 << 13) 
+#define N (1 << 14) 
 
 float in[N];
 float in1[N];
@@ -80,22 +82,45 @@ void callbackHPF(void *bufferData,unsigned int frames){
   }
 }
 
+void callbackPan(void *bufferData,unsigned int frames){
+  float(*fs)[2] = bufferData;
+  const float cutoff = 3000.0f/(plug->music.stream.sampleRate);
+  const float k = cutoff/(cutoff+0.1591549431f);
+  float pan = 0.5f + 0.5f*sinf(GetTime()*2.0f);
+  for(size_t i = 0;i<frames;++i){
+    plug->loadL += k*(fs[i][0] - plug->loadL);
+    plug->loadR += k*(fs[i][1] - plug->loadR);
+    float lowLeft = plug->loadL;
+    float lowRight = plug->loadR;
+
+    float highLeft = fs[i][0] - lowLeft;
+    float highRight = fs[i][1] - lowRight;
+    float pannedHighLeft = highLeft * (1.0f - pan) *2.0f;
+    float pannedHighRight = highRight *pan*2.0f;
+
+    fs[i][0] = lowLeft + pannedHighLeft;
+    fs[i][1] = lowRight + pannedHighRight;
+
+    memmove(in,in+1,(N-1)*sizeof(in[0]));
+    in[N-1] = fs[i][0];
+  }
+}
+
 void detachFilter(Music music){
   if(!IsMusicValid(music)) return;
   if(currentFilter == CALLBACK)DetachAudioStreamProcessor(music.stream, callback);
   else if(currentFilter==CALLBACK_LPF)DetachAudioStreamProcessor(music.stream,callbackLPF);
   else if(currentFilter==CALLBACK_HPF)DetachAudioStreamProcessor(music.stream,callbackHPF);
+  else if(currentFilter==CALLBACK_PAN)DetachAudioStreamProcessor(music.stream,callbackPan);
 }
 
 void switchFilter(Music music,filterType nextFilter){
   if(!IsMusicValid(music)) return;
-  if(currentFilter == CALLBACK)DetachAudioStreamProcessor(music.stream, callback);
-  else if(currentFilter==CALLBACK_LPF)DetachAudioStreamProcessor(music.stream,callbackLPF);
-  else if(currentFilter==CALLBACK_HPF)DetachAudioStreamProcessor(music.stream,callbackHPF);
-
+  detachFilter(plug->music);
   if(nextFilter == CALLBACK)AttachAudioStreamProcessor(music.stream, callback);
   else if(nextFilter == CALLBACK_LPF)AttachAudioStreamProcessor(music.stream,callbackLPF);
   else if(nextFilter == CALLBACK_HPF)AttachAudioStreamProcessor(music.stream,callbackHPF);
+  else if(nextFilter == CALLBACK_PAN)AttachAudioStreamProcessor(music.stream,callbackPan);
 }
 // A fast fourier transform implementation 
 void fft(float in[],size_t stride,float complex out[],size_t n){
@@ -181,17 +206,6 @@ bool marker = false;
 void plug_update(void){
   if(IsMusicValid(plug->music)) UpdateMusicStream(plug->music);
   float dt = GetFrameTime();
-  if(IsKeyPressed(KEY_P)){
-    marker = !marker;
-  }
-  if(marker){
-    float time = GetTime();
-    pan = 0.5f + 0.5f*sinf(time*2.5);
-    SetMusicPan(plug->music,pan);
-  }else{
-    pan += (0.5f-pan)*10.0f*dt;
-    SetMusicPan(plug->music,pan);
-  }
   //drag and drop 
   if(IsFileDropped()){
     printf("file drop triggered\n");
@@ -237,8 +251,10 @@ void plug_update(void){
     switchFilter(plug->music,CALLBACK_HPF);
     currentFilter = CALLBACK_HPF;
   }
-  
-
+  if(IsKeyPressed(KEY_P)){
+    switchFilter(plug->music,CALLBACK_PAN);
+    currentFilter = CALLBACK_PAN;
+  } 
 
   // Volume Controls (default = 0.5f);
   if(IsKeyPressed(KEY_UP) && IsMusicValid(plug->music)){
