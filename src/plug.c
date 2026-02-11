@@ -320,7 +320,7 @@ void plug_update(void){
         }
         amplitude = amplitude * plug->volume;
         float sineWave = sinf(GetTime() * 10.0f + i * 0.2f);
-        float y = (h / 2.0f) - (amplitude * (h / 3.0f) * sineWave);
+        float y = (h / 2.0f) - (IsAudioStreamPlaying(plug->music.stream)* amplitude * (h / 3.0f) * sineWave);
         Vector2 currentPoint = { x, y };
 
         if (i > 0) {
