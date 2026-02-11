@@ -28,6 +28,7 @@ typedef enum {
 filterType currentFilter = CALLBACK;
 
 #define N (1 << 14) 
+#define POINTS 1000
 
 float in[N];
 float in1[N];
@@ -270,10 +271,9 @@ void plug_update(void){
   float w = (float)GetRenderWidth();
   float h = (float)GetRenderHeight();
   Vector2 startPoint = {0,h/2};
-  int points = 200;
-  float waveStep = (float) (w / points);
+  float waveStep = (float) (w /POINTS);
   BeginDrawing();
-    ClearBackground(CLITERAL(Color) {0x18, 0x18, 0x18, 0xFF});
+    ClearBackground((Color){0,0,0,0});
     if(plug->music.ctxData != NULL){
       //https://en.wikipedia.org/wiki/Hann_function
       for(size_t i = 0;i<N;i++){
@@ -307,9 +307,9 @@ void plug_update(void){
       for(size_t i = 0;i<m;i++){
         out_smooth[i] += smoothness*(out_log[i] - out_smooth[i])*dt;
       }
-      for(size_t i = 0;i<(size_t)points;i++){
+      for(size_t i = 0;i<(size_t)POINTS;i++){
         float x = i * waveStep;
-        float binIndex = (float)i / points * m;
+        float binIndex = (float)i / POINTS * m;
         int index = (int)binIndex;
         float fraction = binIndex - index;
         float amplitude = 0;
@@ -318,6 +318,7 @@ void plug_update(void){
         } else {
             amplitude = out_smooth[index];
         }
+        amplitude = amplitude * plug->volume;
         float sineWave = sinf(GetTime() * 10.0f + i * 0.2f);
         float y = (h / 2.0f) - (amplitude * (h / 3.0f) * sineWave);
         Vector2 currentPoint = { x, y };

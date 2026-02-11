@@ -37,12 +37,13 @@ int main(void)
   if(reload_libplug()){
     return 1;
   }
+  SetConfigFlags(FLAG_WINDOW_TRANSPARENT);
   SetConfigFlags(FLAG_MSAA_4X_HINT);
   SetConfigFlags(FLAG_WINDOW_RESIZABLE);
   InitWindow(1200,800,"Vamos");
   SetTargetFPS(60);
   InitAudioDevice();
-  char *file_path = "m1.mp3";
+  char *file_path = "daft.mp3";
 
   /*
     plug_init for drag and drop setup by default 
