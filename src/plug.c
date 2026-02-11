@@ -198,9 +198,6 @@ void plug_post_reload(Plug *state){
     AttachAudioStreamProcessor(plug->music.stream,callback);
 }
 
-float pan = 0.5f;
-float sign = -1.0f;
-float panSpeed = 1.1;
 //main function for updating each frame and draw the visualization
 bool marker = false;
 void plug_update(void){
@@ -270,8 +267,11 @@ void plug_update(void){
     }
   }
 
-  int w = GetRenderWidth();
+  float w = (float)GetRenderWidth();
   float h = (float)GetRenderHeight();
+  Vector2 startPoint = {0,h/2};
+  int points = 200;
+  float waveStep = (float) (w / points);
   BeginDrawing();
     ClearBackground(CLITERAL(Color) {0x18, 0x18, 0x18, 0xFF});
     if(plug->music.ctxData != NULL){
@@ -307,23 +307,27 @@ void plug_update(void){
       for(size_t i = 0;i<m;i++){
         out_smooth[i] += smoothness*(out_log[i] - out_smooth[i])*dt;
       }
-      for(size_t i = 0;i<m;i++){
-        float t = out_smooth[i];
-        float hue = 240.0f - (240.0f*t);
-        if(hue < 0.0f) hue = 0.0f;
-        Color color = ColorFromHSV(hue,1.0f,1.0f);
-        Vector2 startPos = {
-          cell_width*(0.5 + i),
-          h-(h*t*sqrtf(plug->volume))
-        };
-        Vector2 endPos = {
-          cell_width*(0.5 + i),
-          h
-        };
-        DrawLineEx(startPos,endPos,cell_width/2,color);
-        DrawCircleV(startPos,cell_width*(t),color);
-        DrawCircleLinesV(startPos,cell_width*(t)*2, color);
+      for(size_t i = 0;i<(size_t)points;i++){
+        float x = i * waveStep;
+        float binIndex = (float)i / points * m;
+        int index = (int)binIndex;
+        float fraction = binIndex - index;
+        float amplitude = 0;
+        if (index < m - 1) {
+            amplitude = out_smooth[index] * (1.0f - fraction) + out_smooth[index + 1] * fraction;
+        } else {
+            amplitude = out_smooth[index];
+        }
+        float sineWave = sinf(GetTime() * 10.0f + i * 0.2f);
+        float y = (h / 2.0f) - (amplitude * (h / 3.0f) * sineWave);
+        Vector2 currentPoint = { x, y };
 
+        if (i > 0) {
+          float hue = 240.0f - (amplitude * 240.0f);
+          DrawLineEx(startPoint, currentPoint, 3.0f, ColorFromHSV(hue, 1.0f, 1.0f));
+        }
+    
+        startPoint = currentPoint;
       }
   }else{
       if(plug->error) DrawText("Eroor :(",0,0,70,RED);
