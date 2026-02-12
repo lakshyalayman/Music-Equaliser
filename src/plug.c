@@ -28,9 +28,9 @@ typedef enum {
 filterType currentFilter = CALLBACK;
 
 #define N (1 << 14) 
-#define POINTS 100
-// #define SINE_WAVE
-#define MULTI_WAVE
+#define SINE_WAVE
+// #define MULTI_WAVE
+// #define LINE
 
 float in[N];
 float in1[N];
@@ -272,7 +272,6 @@ void plug_update(void){
 
   float w = (float)GetRenderWidth();
   float h = (float)GetRenderHeight();
-  float waveStep = (float) (w /POINTS);
   BeginDrawing();
     ClearBackground((Color){0,0,0,0});
     if(plug->music.ctxData != NULL){
@@ -309,6 +308,8 @@ void plug_update(void){
         out_smooth[i] += smoothness*(out_log[i] - out_smooth[i])*dt;
       }
 #ifdef SINE_WAVE
+      int POINTS = 500;
+      float waveStep = (float) (w /POINTS);
       Vector2 startPoint = {0,h/2};
       for(size_t i = 0;i<(size_t)POINTS;i++){
         float x = i * waveStep;
@@ -317,12 +318,12 @@ void plug_update(void){
         float fraction = binIndex - index;
         float amplitude = 0;
         if (index < m - 1) {
-            amplitude = out_log[index] * (1.0f - fraction) + out_log[index + 1] * fraction;
+            amplitude = out_smooth[index] * (1.0f - fraction) + out_smooth[index + 1] * fraction;
         } else {
-            amplitude = out_log[index];
+            amplitude = out_smooth[index];
         }
         amplitude = amplitude * plug->volume;
-        float sineWave = sinf(GetTime() * 10.0f + i * 0.2f);
+        float sineWave = sinf(GetTime() * 10.0f + i * 0.5f);
         float y = (h / 2.0f) - (IsAudioStreamPlaying(plug->music.stream)* amplitude * (h / 3.0f) * sineWave);
         Vector2 currentPoint = { x, y };
 
@@ -335,8 +336,10 @@ void plug_update(void){
       }
 #endif
 #ifdef MULTI_WAVE
+    int POINTS = 100;
+    float waveStep = (float) (w /POINTS);
     for(size_t wave = 0;wave < m;wave++){
-      float amplitude = out_smooth[wave] * plug->volume;
+      float amplitude = out_log[wave] * plug->volume;
       if(amplitude < 0.1f)continue;
       float hue = 240.0f - (240.0f*((float)wave/m));  
       Color color = ColorFromHSV(hue,1.0f,1.0f);
@@ -348,13 +351,14 @@ void plug_update(void){
         float timeOffset = GetTime() * 5.0f;
         float phase = wave * 0.12f;
         float sineWave = sinf(timeOffset + (i * visualFrequency) + phase);
-        float y = (h/2.0f) - (amplitude * (h/3.0f) * sineWave);
+        float y = (h/2.0f) - (amplitude * (h/2.0f) * sineWave);
         Vector2 currentPoint = {x,y};
         if(i > 0)DrawLineEx(startPoint,currentPoint,3.5f, color);
         startPoint = currentPoint;
       }
     }
-#else 
+#endif
+#ifdef LINE
       for(size_t i = 0;i<m;i++){
         float t = out_smooth[i];
         float hue = 240.0f - (240.0f*t);
