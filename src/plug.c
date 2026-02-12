@@ -28,7 +28,9 @@ typedef enum {
 filterType currentFilter = CALLBACK;
 
 #define N (1 << 14) 
-#define POINTS 1000
+#define POINTS 100
+// #define SINE_WAVE
+#define MULTI_WAVE
 
 float in[N];
 float in1[N];
@@ -270,7 +272,6 @@ void plug_update(void){
 
   float w = (float)GetRenderWidth();
   float h = (float)GetRenderHeight();
-  Vector2 startPoint = {0,h/2};
   float waveStep = (float) (w /POINTS);
   BeginDrawing();
     ClearBackground((Color){0,0,0,0});
@@ -307,6 +308,8 @@ void plug_update(void){
       for(size_t i = 0;i<m;i++){
         out_smooth[i] += smoothness*(out_log[i] - out_smooth[i])*dt;
       }
+#ifdef SINE_WAVE
+      Vector2 startPoint = {0,h/2};
       for(size_t i = 0;i<(size_t)POINTS;i++){
         float x = i * waveStep;
         float binIndex = (float)i / POINTS * m;
@@ -314,9 +317,9 @@ void plug_update(void){
         float fraction = binIndex - index;
         float amplitude = 0;
         if (index < m - 1) {
-            amplitude = out_smooth[index] * (1.0f - fraction) + out_smooth[index + 1] * fraction;
+            amplitude = out_log[index] * (1.0f - fraction) + out_log[index + 1] * fraction;
         } else {
-            amplitude = out_smooth[index];
+            amplitude = out_log[index];
         }
         amplitude = amplitude * plug->volume;
         float sineWave = sinf(GetTime() * 10.0f + i * 0.2f);
@@ -330,6 +333,46 @@ void plug_update(void){
     
         startPoint = currentPoint;
       }
+#endif
+#ifdef MULTI_WAVE
+    for(size_t wave = 0;wave < m;wave++){
+      float amplitude = out_smooth[wave] * plug->volume;
+      if(amplitude < 0.1f)continue;
+      float hue = 240.0f - (240.0f*((float)wave/m));  
+      Color color = ColorFromHSV(hue,1.0f,1.0f);
+      color.a = 50;
+      Vector2 startPoint = {0,h/2};
+      for(int i = 0;i<POINTS;i++){
+        float x = i * waveStep;
+        float visualFrequency = 0.05f + ((float) wave/m) *0.5f;
+        float timeOffset = GetTime() * 5.0f;
+        float phase = wave * 0.12f;
+        float sineWave = sinf(timeOffset + (i * visualFrequency) + phase);
+        float y = (h/2.0f) - (amplitude * (h/3.0f) * sineWave);
+        Vector2 currentPoint = {x,y};
+        if(i > 0)DrawLineEx(startPoint,currentPoint,3.5f, color);
+        startPoint = currentPoint;
+      }
+    }
+#else 
+      for(size_t i = 0;i<m;i++){
+        float t = out_smooth[i];
+        float hue = 240.0f - (240.0f*t);
+        if(hue < 0.0f) hue = 0.0f;
+        Color color = ColorFromHSV(hue,1.0f,1.0f);
+        Vector2 startPos = {
+          cell_width*(0.5 + i),
+          h-(h*t*sqrtf(plug->volume))
+        };
+        Vector2 endPos = {
+          cell_width*(0.5 + i),
+          h
+        };
+        DrawLineEx(startPos,endPos,cell_width/2,color);
+        DrawCircleV(startPos,cell_width*(t),color);
+        DrawCircleLinesV(startPos,cell_width*(t)*2, color);
+      }
+#endif
   }else{
       if(plug->error) DrawText("Eroor :(",0,0,70,RED);
       else DrawText("Drop music",1,1,70,GOLD);
