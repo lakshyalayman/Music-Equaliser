@@ -28,8 +28,8 @@ typedef enum {
 filterType currentFilter = CALLBACK;
 
 #define N (1 << 14) 
-#define SINE_WAVE
-// #define MULTI_WAVE
+// #define SINE_WAVE
+#define MULTI_WAVE
 // #define LINE
 
 float in[N];
@@ -338,12 +338,13 @@ void plug_update(void){
 #ifdef MULTI_WAVE
     int POINTS = 100;
     float waveStep = (float) (w /POINTS);
-    for(size_t wave = 0;wave < m;wave++){
-      float amplitude = out_log[wave] * plug->volume;
+    float jumpStep = 1.05f;
+    for(size_t wave = 1;wave < m;wave = ceilf(jumpStep * wave)){
+      float amplitude = out_smooth[wave] * plug->volume;
       if(amplitude < 0.1f)continue;
       float hue = 240.0f - (240.0f*((float)wave/m));  
       Color color = ColorFromHSV(hue,1.0f,1.0f);
-      color.a = 50;
+      color.a = 80;
       Vector2 startPoint = {0,h/2};
       for(int i = 0;i<POINTS;i++){
         float x = i * waveStep;
