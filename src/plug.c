@@ -61,7 +61,6 @@ void callbackLPF(void *bufferdata,unsigned int frames){
   const float cutoff = 1000.0f/(plug->music.stream.sampleRate);
   const float k = cutoff/(cutoff + 0.1591549431f);
   for(size_t i = 0;i<frames;++i){
-    // const float change = fs[i][0];
     plug->loadL += k*(fs[i][0] - plug->loadL);
     plug->loadR += k*(fs[i][1] - plug->loadR);
     fs[i][0] = plug->loadL;
@@ -87,22 +86,24 @@ void callbackHPF(void *bufferData,unsigned int frames){
 
 void callbackPan(void *bufferData,unsigned int frames){
   float(*fs)[2] = bufferData;
-  const float cutoff = 3000.0f/(plug->music.stream.sampleRate);
-  const float k = cutoff/(cutoff+0.1591549431f);
+  float cutoff = 1000.0f;
+  float fsr = plug->music.stream.sampleRate;
+  float k = 1.0f - expf(-2.0f * PI * cutoff / fsr);
   float pan = 0.5f + 0.5f*sinf(GetTime()*2.0f);
+  const float gainL = cosf(pan * M_PI_2);
+  const float gainR = sinf(pan * M_PI_2);
   for(size_t i = 0;i<frames;++i){
     plug->loadL += k*(fs[i][0] - plug->loadL);
     plug->loadR += k*(fs[i][1] - plug->loadR);
+
     float lowLeft = plug->loadL;
     float lowRight = plug->loadR;
 
     float highLeft = fs[i][0] - lowLeft;
     float highRight = fs[i][1] - lowRight;
-    float pannedHighLeft = highLeft * (1.0f - pan) *2.0f;
-    float pannedHighRight = highRight *pan*2.0f;
 
-    fs[i][0] = lowLeft + pannedHighLeft;
-    fs[i][1] = lowRight + pannedHighRight;
+    fs[i][0] = lowLeft + highLeft * gainL;
+    fs[i][1] = lowRight + highRight * gainR;
 
     memmove(in,in+1,(N-1)*sizeof(in[0]));
     in[N-1] = fs[i][0];
@@ -302,13 +303,12 @@ void plug_update(void){
       for(size_t i = 0;i<m;i++){
         out_log[i] /= max_amp;
       }
-      float cell_width = (float)w/m;
       
       for(size_t i = 0;i<m;i++){
         out_smooth[i] += smoothness*(out_log[i] - out_smooth[i])*dt;
       }
 #ifdef SINE_WAVE
-      int POINTS = 500;
+      int POINTS = 150;
       float waveStep = (float) (w /POINTS);
       Vector2 startPoint = {0,h/2};
       for(size_t i = 0;i<(size_t)POINTS;i++){
@@ -336,15 +336,15 @@ void plug_update(void){
       }
 #endif
 #ifdef MULTI_WAVE
-    int POINTS = 100;
+    int POINTS = 40;
     float waveStep = (float) (w /POINTS);
-    float jumpStep = 1.05f;
+    float jumpStep = 1.07f;
     for(size_t wave = 1;wave < m;wave = ceilf(jumpStep * wave)){
       float amplitude = out_smooth[wave] * plug->volume;
-      if(amplitude < 0.1f)continue;
+      if(amplitude < 0.05f)continue;
       float hue = 240.0f - (240.0f*((float)wave/m));  
       Color color = ColorFromHSV(hue,1.0f,1.0f);
-      color.a = 80;
+      // color.a = 90;
       Vector2 startPoint = {0,h/2};
       for(int i = 0;i<POINTS;i++){
         float x = i * waveStep;
@@ -352,14 +352,15 @@ void plug_update(void){
         float timeOffset = GetTime() * 5.0f;
         float phase = wave * 0.12f;
         float sineWave = sinf(timeOffset + (i * visualFrequency) + phase);
-        float y = (h/2.0f) - (amplitude * (h/2.0f) * sineWave);
+        float y = (h/2.0f) - (IsAudioStreamPlaying(plug->music.stream)*amplitude * (h/2.0f) * sineWave);
         Vector2 currentPoint = {x,y};
-        if(i > 0)DrawLineEx(startPoint,currentPoint,3.5f, color);
+        if(i > 0)DrawLineEx(startPoint,currentPoint,1.0f, color);
         startPoint = currentPoint;
       }
     }
 #endif
 #ifdef LINE
+      float cell_width = (float)w/m;
       for(size_t i = 0;i<m;i++){
         float t = out_smooth[i];
         float hue = 240.0f - (240.0f*t);

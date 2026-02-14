@@ -22,10 +22,10 @@ int reload_libplug(void){
     return 1;
   }
   #define PLUG(name,...) \
-    name = dlsym(libplug,#name); \ 
-    if(name == NULL){ \
-      fprintf(stderr,"ERROR:could not find %s symbol in %s: %s",#name,libplug_file_name,dlerror()); \ 
-      return 1; \
+    name = dlsym(libplug,#name);\
+    if(name == NULL){\
+      fprintf(stderr,"ERROR:could not find %s symbol in %s: %s",#name,libplug_file_name,dlerror());\
+      return 1;\
     } 
   LIST_OF_PLUGS
   #undef PLUG
@@ -43,7 +43,7 @@ int main(void)
   InitWindow(1200,800,"Vamos");
   SetTargetFPS(60);
   InitAudioDevice();
-  char *file_path = "daft.mp3";
+  char *file_path = "m2.mp3";
 
   /*
     plug_init for drag and drop setup by default 
