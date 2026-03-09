@@ -8,10 +8,11 @@
 #include <math.h>
 
 
-#define N (1 << 14) 
+#define N (1 << 13) 
 // #define SINE_WAVE
-#define MULTI_WAVE
-// #define LINE
+// #define MULTI_WAVE
+#define LINE
+// #define EQ_MODE
 
 //Plug struct for hot reloading,plug->music for drag and drop
 typedef struct {
@@ -19,7 +20,18 @@ typedef struct {
   Music music;
   float loadL;
   float loadR;
+  float midL;
+  float midR;
+  float lowL;
+  float lowR;
   float volume;
+  float bassGain;
+  float trebleGain;
+  float midGain;
+  float bassCutoff;
+  float trebleCutoff;
+  float midLow;
+  float midHigh;
 } Plug;
 
 typedef struct {
@@ -37,10 +49,15 @@ typedef enum {
   CALLBACK_PAN,
   CALLBACK_BB,
   CALLBACK_TRB,
-  CALLBACK_CLR
+  CALLBACK_CLR,
+  CALLBACK_EQ_MODE
 } filterType;
 
+#ifdef EQ_MODE
+filterType currentFilter = CALLBACK_EQ_MODE;
+#else
 filterType currentFilter = CALLBACK;
+#endif
 
 float in[N];
 float in1[N];
@@ -73,8 +90,6 @@ void callback(void *bufferData,unsigned int frames){
   // Frame *fs = bufferData;
   float (*fs)[2] = bufferData;
   for(size_t i = 0;i<frames;++i){
-    // memmove(in,in+1,(N-1)*sizeof(in[0]));
-    // in[N-1] = fs[i][0];
     rb_push(&ring,fs[i][0]);
   }
 }
@@ -88,8 +103,6 @@ void callbackLPF(void *bufferdata,unsigned int frames){
     plug->loadR += k*(fs[i][1] - plug->loadR);
     fs[i][0] = plug->loadL;
     fs[i][1] = plug->loadR;
-    // memmove(in,in+1,(N-1)*sizeof(in[0]));
-    // in[N-1] = plug->loadL;
     rb_push(&ring,plug->loadL);
   }
 }
@@ -103,8 +116,6 @@ void callbackHPF(void *bufferData,unsigned int frames){
     plug->loadR += k*(fs[i][1] - plug->loadR);
     fs[i][0] = fs[i][0] - plug->loadL;
     fs[i][1] = fs[i][1] - plug->loadR;
-    // memmove(in,in+1,(N-1)*sizeof(in[0]));
-    // in[N-1] = fs[i][0];
     rb_push(&ring,fs[i][0]);
   }
 }
@@ -152,7 +163,7 @@ void callbackTrebleBoost(void *bufferData,unsigned int frames){
   float(*fs)[2] = bufferData;
   float cutoff = 4000.0f / plug->music.stream.sampleRate;
   float k = cutoff / (cutoff + 0.1591549431f);
-  float gain = 2.0f;
+  float gain = 2.5f;
   for(size_t i = 0;i<frames;i++){
     plug->loadL += k * (fs[i][0] - plug->loadL);
     plug->loadR += k * (fs[i][1] - plug->loadR);
@@ -167,25 +178,65 @@ void callbackTrebleBoost(void *bufferData,unsigned int frames){
 void callbackClear(void *bufferData, unsigned int frames) {
   float(*fs)[2] = bufferData;
   float fsr = plug->music.stream.sampleRate;
-  float cutLow  = 2000.0f / fsr;
-  float cutHigh = 4000.0f / fsr;
+  float cutLow  = 1000.0f / fsr;
+  float cutHigh = 5000.0f / fsr;
   float kL = cutLow  / (cutLow  + 0.1591549431f);
   float kH = cutHigh / (cutHigh + 0.1591549431f);
-  static float lowL, lowR, midL, midR;
-  float gain = 2.0f;
+  float gain = 2.5f;
   for (size_t i = 0; i < frames; ++i) {
-    lowL += kL * (fs[i][0] - lowL);
-    lowR += kL * (fs[i][1] - lowR);
-    midL += kH * (fs[i][0] - midL);
-    midR += kH * (fs[i][1] - midR);
-    float bandL = midL - lowL; // bandpass
-    float bandR = midR - lowR;
+    plug->lowL += kL * (fs[i][0] - plug->lowL);
+    plug->lowR += kL * (fs[i][1] - plug->lowR);
+    plug->midL += kH * (fs[i][0] - plug->midL);
+    plug->midR += kH * (fs[i][1] - plug->midR);
+    float bandL = plug->midL - plug->lowL; 
+    float bandR = plug->midR - plug->lowR;
     fs[i][0] = fs[i][0] + bandL * (gain - 1.0f);
     fs[i][1] = fs[i][1] + bandR * (gain - 1.0f);
     rb_push(&ring,fs[i][0]);
   }
 }
 
+void callbackEQ(void *bufferData, unsigned int frames) {
+  float(*fs)[2] = bufferData;
+  float fsr = plug->music.stream.sampleRate;
+
+  float kBass   = plug->bassCutoff   / fsr;
+  float kTreble = plug->trebleCutoff / fsr;
+  float kMidL   = plug->midLow       / fsr;
+  float kMidH   = plug->midHigh      / fsr;
+
+  kBass   = kBass   / (kBass   + 0.1591549431f);
+  kTreble = kTreble / (kTreble + 0.1591549431f);
+  kMidL   = kMidL   / (kMidL   + 0.1591549431f);
+  kMidH   = kMidH   / (kMidH   + 0.1591549431f);
+
+  for (size_t i = 0; i < frames; ++i) {
+    plug->loadL += kBass * (fs[i][0] - plug->loadL);
+    plug->loadR += kBass * (fs[i][1] - plug->loadR);
+
+    float hiL = fs[i][0] - plug->loadL;
+    float hiR = fs[i][1] - plug->loadR;
+
+    plug->midL += kMidL * (fs[i][0] - plug->midL);
+    plug->midR += kMidL * (fs[i][1] - plug->midR);
+    float tempL = fs[i][0] - plug->midL;
+    float tempR = fs[i][1] - plug->midR;
+    static float mid2L, mid2R;
+    mid2L += kMidH * (tempL - mid2L);
+    mid2R += kMidH * (tempR - mid2R);
+    float bandL = mid2L;
+    float bandR = mid2R;
+
+    fs[i][0] = plug->loadL  * plug->bassGain
+             + hiL          * plug->trebleGain
+             + bandL        * plug->midGain;
+    fs[i][1] = plug->loadR  * plug->bassGain
+             + hiR          * plug->trebleGain
+             + bandR        * plug->midGain;
+
+    rb_push(&ring,fs[i][0]);
+  }
+}
 void detachFilter(Music music){
   if(!IsMusicValid(music)) return;
   if(currentFilter == CALLBACK)DetachAudioStreamProcessor(music.stream, callback);
@@ -195,10 +246,13 @@ void detachFilter(Music music){
   else if(currentFilter==CALLBACK_BB)DetachAudioStreamProcessor(music.stream,callbackBassBoost);
   else if(currentFilter==CALLBACK_TRB)DetachAudioStreamProcessor(music.stream,callbackTrebleBoost);
   else if(currentFilter==CALLBACK_CLR)DetachAudioStreamProcessor(music.stream,callbackClear);
+  else if(currentFilter==CALLBACK_EQ_MODE)DetachAudioStreamProcessor(music.stream,callbackEQ);
 }
 
 void switchFilter(Music music,filterType nextFilter){
   if(!IsMusicValid(music)) return;
+  if(currentFilter == nextFilter)
+    return;
   detachFilter(plug->music);
   if(nextFilter == CALLBACK)AttachAudioStreamProcessor(music.stream, callback);
   else if(nextFilter == CALLBACK_LPF)AttachAudioStreamProcessor(music.stream,callbackLPF);
@@ -206,7 +260,8 @@ void switchFilter(Music music,filterType nextFilter){
   else if(nextFilter == CALLBACK_PAN)AttachAudioStreamProcessor(music.stream,callbackPan);
   else if(nextFilter == CALLBACK_BB)AttachAudioStreamProcessor(music.stream,callbackBassBoost);
   else if(nextFilter == CALLBACK_TRB)AttachAudioStreamProcessor(music.stream,callbackTrebleBoost);
-  else if(nextFilter == CALLBACK_CLR)AttachAudioStreamProcessor(music.stream,callbackTrebleBoost);
+  else if(nextFilter == CALLBACK_CLR)AttachAudioStreamProcessor(music.stream,callbackClear);
+  else if(nextFilter==CALLBACK_EQ_MODE)AttachAudioStreamProcessor(music.stream,callbackEQ);
 }
 // A fast fourier transform implementation 
 void fft(float in[],size_t stride,float complex out[],size_t n){
@@ -250,7 +305,11 @@ void plug_src_init(const char *src){
   if(IsMusicValid(plug->music)){
     PlayMusicStream(plug->music);
     printf("%i\n",plug->music.stream.sampleRate);
-    AttachAudioStreamProcessor(plug->music.stream,callback);
+    #ifdef EQ_MODE
+      AttachAudioStreamProcessor(plug->music.stream,callbackEQ);
+    #else 
+      AttachAudioStreamProcessor(plug->music.stream,callback);
+    #endif /* ifdef EQ_MODE */
     plug->volume = 0.5f;
     SetMusicVolume(plug->music,plug->volume);
   }
@@ -433,10 +492,10 @@ void plug_update(void){
       }
 #endif
 #ifdef MULTI_WAVE
-    int POINTS = 40;
+    int POINTS = 100;
     float waveStep = (float) (w /POINTS);
     float jumpStep = 1.07f;
-    for(size_t wave = 1;wave < m;wave = ceilf(jumpStep * wave)){
+    for(size_t wave = 1;wave <= m;wave = ceilf(jumpStep * wave)){
       float amplitude = out_smooth[wave] * plug->volume;
       if(amplitude < 0.05f)continue;
       float hue = 240.0f - (240.0f*((float)wave/m));  
