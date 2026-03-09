@@ -43,7 +43,7 @@ int main(void)
   InitWindow(1200,800,"Vamos");
   SetTargetFPS(60);
   InitAudioDevice();
-  char *file_path = "m2.mp3";
+  char *file_path = "daft.mp3";
 
   /*
     plug_init for drag and drop setup by default 

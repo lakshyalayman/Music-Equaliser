@@ -7,6 +7,12 @@
 #include "plug.h"
 #include <math.h>
 
+
+#define N (1 << 14) 
+// #define SINE_WAVE
+#define MULTI_WAVE
+// #define LINE
+
 //Plug struct for hot reloading,plug->music for drag and drop
 typedef struct {
   bool error;
@@ -16,27 +22,41 @@ typedef struct {
   float volume;
 } Plug;
 
+typedef struct {
+  float data[N];
+  size_t head;
+}RingBuffer;
+
 Plug *plug = NULL;
+RingBuffer ring;
 
 typedef enum {
   CALLBACK,
   CALLBACK_LPF,
   CALLBACK_HPF,
   CALLBACK_PAN,
+  CALLBACK_BB
 } filterType;
 
 filterType currentFilter = CALLBACK;
-
-#define N (1 << 14) 
-// #define SINE_WAVE
-#define MULTI_WAVE
-// #define LINE
 
 float in[N];
 float in1[N];
 float complex out[N];
 float out_log[N];
 float out_smooth[N];
+
+void rb_push(RingBuffer *rb,float sample){
+  rb->data[rb->head] = sample;
+  rb->head = (rb->head+1)%N;
+}
+
+void rb_read(RingBuffer *rb,float dst[N]){
+  size_t h = rb->head;
+  for(size_t i = 0;i<N;i++){
+    dst[i] = rb->data[(h+i) %N];
+  }
+}
 
 // Amplitude funciton for a complex input which is under root of square of both real and imaginary part of the complex number
 float amp(float complex z){
@@ -51,8 +71,9 @@ void callback(void *bufferData,unsigned int frames){
   // Frame *fs = bufferData;
   float (*fs)[2] = bufferData;
   for(size_t i = 0;i<frames;++i){
-    memmove(in,in+1,(N-1)*sizeof(in[0]));
-    in[N-1] = fs[i][0];
+    // memmove(in,in+1,(N-1)*sizeof(in[0]));
+    // in[N-1] = fs[i][0];
+    rb_push(&ring,fs[i][0]);
   }
 }
 
@@ -65,8 +86,9 @@ void callbackLPF(void *bufferdata,unsigned int frames){
     plug->loadR += k*(fs[i][1] - plug->loadR);
     fs[i][0] = plug->loadL;
     fs[i][1] = plug->loadR;
-    memmove(in,in+1,(N-1)*sizeof(in[0]));
-    in[N-1] = plug->loadL;
+    // memmove(in,in+1,(N-1)*sizeof(in[0]));
+    // in[N-1] = plug->loadL;
+    rb_push(&ring,plug->loadL);
   }
 }
 
@@ -79,8 +101,9 @@ void callbackHPF(void *bufferData,unsigned int frames){
     plug->loadR += k*(fs[i][1] - plug->loadR);
     fs[i][0] = fs[i][0] - plug->loadL;
     fs[i][1] = fs[i][1] - plug->loadR;
-    memmove(in,in+1,(N-1)*sizeof(in[0]));
-    in[N-1] = fs[i][0];
+    // memmove(in,in+1,(N-1)*sizeof(in[0]));
+    // in[N-1] = fs[i][0];
+    rb_push(&ring,fs[i][0]);
   }
 }
 
@@ -89,7 +112,7 @@ void callbackPan(void *bufferData,unsigned int frames){
   float cutoff = 1000.0f;
   float fsr = plug->music.stream.sampleRate;
   float k = 1.0f - expf(-2.0f * PI * cutoff / fsr);
-  float pan = 0.5f + 0.5f*sinf(GetTime()*2.0f);
+  float pan = 0.3f + 0.3f*sinf(GetTime()*2.0f);
   const float gainL = cosf(pan * M_PI_2);
   const float gainR = sinf(pan * M_PI_2);
   for(size_t i = 0;i<frames;++i){
@@ -105,8 +128,21 @@ void callbackPan(void *bufferData,unsigned int frames){
     fs[i][0] = lowLeft + highLeft * gainL;
     fs[i][1] = lowRight + highRight * gainR;
 
-    memmove(in,in+1,(N-1)*sizeof(in[0]));
-    in[N-1] = fs[i][0];
+    rb_push(&ring,fs[i][0]);
+  }
+}
+
+void callbackBassBoost(void *bufferData, unsigned int frames) {
+  float(*fs)[2] = bufferData;
+  float cutoff = 200.0f / plug->music.stream.sampleRate;
+  float k = cutoff / (cutoff + 0.1591549431f);
+  float gain = 3.5f; 
+  for (size_t i = 0; i < frames; ++i) {
+    plug->loadL += k * (fs[i][0] - plug->loadL);
+    plug->loadR += k * (fs[i][1] - plug->loadR);
+    fs[i][0] = fs[i][0] + (plug->loadL * (gain - 1.0f));
+    fs[i][1] = fs[i][1] + (plug->loadR * (gain - 1.0f));
+    rb_push(&ring,fs[i][0]);
   }
 }
 
@@ -116,6 +152,7 @@ void detachFilter(Music music){
   else if(currentFilter==CALLBACK_LPF)DetachAudioStreamProcessor(music.stream,callbackLPF);
   else if(currentFilter==CALLBACK_HPF)DetachAudioStreamProcessor(music.stream,callbackHPF);
   else if(currentFilter==CALLBACK_PAN)DetachAudioStreamProcessor(music.stream,callbackPan);
+  else if(currentFilter==CALLBACK_BB)DetachAudioStreamProcessor(music.stream,callbackBassBoost);
 }
 
 void switchFilter(Music music,filterType nextFilter){
@@ -125,6 +162,7 @@ void switchFilter(Music music,filterType nextFilter){
   else if(nextFilter == CALLBACK_LPF)AttachAudioStreamProcessor(music.stream,callbackLPF);
   else if(nextFilter == CALLBACK_HPF)AttachAudioStreamProcessor(music.stream,callbackHPF);
   else if(nextFilter == CALLBACK_PAN)AttachAudioStreamProcessor(music.stream,callbackPan);
+  else if(nextFilter == CALLBACK_BB)AttachAudioStreamProcessor(music.stream,callbackBassBoost);
 }
 // A fast fourier transform implementation 
 void fft(float in[],size_t stride,float complex out[],size_t n){
@@ -256,6 +294,10 @@ void plug_update(void){
     switchFilter(plug->music,CALLBACK_PAN);
     currentFilter = CALLBACK_PAN;
   } 
+  if(IsKeyPressed(KEY_B)){
+    switchFilter(plug->music,CALLBACK_BB);
+    currentFilter = CALLBACK_BB;
+  }
 
   // Volume Controls (default = 0.5f);
   if(IsKeyPressed(KEY_UP) && IsMusicValid(plug->music)){
@@ -277,6 +319,7 @@ void plug_update(void){
     ClearBackground((Color){0,0,0,0});
     if(plug->music.ctxData != NULL){
       //https://en.wikipedia.org/wiki/Hann_function
+      rb_read(&ring,in);
       for(size_t i = 0;i<N;i++){
         float t = (float)i/(N-1);
         float hanning = 0.5 - 0.5*cosf(2*PI*t);
