@@ -36,7 +36,8 @@ typedef enum {
   CALLBACK_HPF,
   CALLBACK_PAN,
   CALLBACK_BB,
-  CALLBACK_TRB
+  CALLBACK_TRB,
+  CALLBACK_CLR
 } filterType;
 
 filterType currentFilter = CALLBACK;
@@ -163,6 +164,28 @@ void callbackTrebleBoost(void *bufferData,unsigned int frames){
   }
 }
 
+void callbackClear(void *bufferData, unsigned int frames) {
+  float(*fs)[2] = bufferData;
+  float fsr = plug->music.stream.sampleRate;
+  float cutLow  = 2000.0f / fsr;
+  float cutHigh = 4000.0f / fsr;
+  float kL = cutLow  / (cutLow  + 0.1591549431f);
+  float kH = cutHigh / (cutHigh + 0.1591549431f);
+  static float lowL, lowR, midL, midR;
+  float gain = 2.0f;
+  for (size_t i = 0; i < frames; ++i) {
+    lowL += kL * (fs[i][0] - lowL);
+    lowR += kL * (fs[i][1] - lowR);
+    midL += kH * (fs[i][0] - midL);
+    midR += kH * (fs[i][1] - midR);
+    float bandL = midL - lowL; // bandpass
+    float bandR = midR - lowR;
+    fs[i][0] = fs[i][0] + bandL * (gain - 1.0f);
+    fs[i][1] = fs[i][1] + bandR * (gain - 1.0f);
+    rb_push(&ring,fs[i][0]);
+  }
+}
+
 void detachFilter(Music music){
   if(!IsMusicValid(music)) return;
   if(currentFilter == CALLBACK)DetachAudioStreamProcessor(music.stream, callback);
@@ -171,6 +194,7 @@ void detachFilter(Music music){
   else if(currentFilter==CALLBACK_PAN)DetachAudioStreamProcessor(music.stream,callbackPan);
   else if(currentFilter==CALLBACK_BB)DetachAudioStreamProcessor(music.stream,callbackBassBoost);
   else if(currentFilter==CALLBACK_TRB)DetachAudioStreamProcessor(music.stream,callbackTrebleBoost);
+  else if(currentFilter==CALLBACK_CLR)DetachAudioStreamProcessor(music.stream,callbackClear);
 }
 
 void switchFilter(Music music,filterType nextFilter){
@@ -182,6 +206,7 @@ void switchFilter(Music music,filterType nextFilter){
   else if(nextFilter == CALLBACK_PAN)AttachAudioStreamProcessor(music.stream,callbackPan);
   else if(nextFilter == CALLBACK_BB)AttachAudioStreamProcessor(music.stream,callbackBassBoost);
   else if(nextFilter == CALLBACK_TRB)AttachAudioStreamProcessor(music.stream,callbackTrebleBoost);
+  else if(nextFilter == CALLBACK_CLR)AttachAudioStreamProcessor(music.stream,callbackTrebleBoost);
 }
 // A fast fourier transform implementation 
 void fft(float in[],size_t stride,float complex out[],size_t n){
@@ -247,6 +272,59 @@ void plug_unload_stream(void){
   CloseWindow();
 }
 
+void plug_key_functions(void){
+  // Filter (Normal + LPF + HPF + Pan + BassBoost + TrebleBoost + Clear)
+  if(IsKeyPressed(KEY_COMMA)){
+    switchFilter(plug->music,CALLBACK_LPF);
+    currentFilter = CALLBACK_LPF;
+  } 
+  if(IsKeyPressed(KEY_PERIOD)){
+    switchFilter(plug->music,CALLBACK);
+    currentFilter = CALLBACK;
+  }
+  if(IsKeyPressed(KEY_SLASH)){
+    switchFilter(plug->music,CALLBACK_HPF);
+    currentFilter = CALLBACK_HPF;
+  }
+  if(IsKeyPressed(KEY_P)){
+    switchFilter(plug->music,CALLBACK_PAN);
+    currentFilter = CALLBACK_PAN;
+  } 
+  if(IsKeyPressed(KEY_B)){
+    switchFilter(plug->music,CALLBACK_BB);
+    currentFilter = CALLBACK_BB;
+  }
+  if(IsKeyPressed(KEY_T)){
+    switchFilter(plug->music,CALLBACK_TRB);
+    currentFilter = CALLBACK_TRB;
+  }
+  if(IsKeyPressed(KEY_C)){
+    switchFilter(plug->music,CALLBACK_CLR);
+    currentFilter = CALLBACK_CLR;
+  }
+
+  // Volume Controls (default = 0.5f);
+  if(IsKeyPressed(KEY_UP) && IsMusicValid(plug->music)){
+    if(plug->volume < 1.0f){
+      plug->volume += 0.1f;
+      SetMusicVolume(plug->music,plug->volume);
+    }
+  }
+  if(IsKeyPressed(KEY_DOWN) && IsMusicValid(plug->music)){
+    if(plug->volume > 0.1f){
+      plug->volume -= 0.1f;
+      SetMusicVolume(plug->music,plug->volume);
+    }
+  }
+  if(IsKeyPressed(KEY_SPACE) && IsMusicValid(plug->music)){
+      if(IsMusicStreamPlaying(plug->music)){
+        PauseMusicStream(plug->music);
+      }else{
+        ResumeMusicStream(plug->music);
+      }
+  }
+}
+
 // Pre reload and post reload functions for hot reloading 
 Plug *plug_pre_reload(void){
   if(IsMusicValid(plug->music))
@@ -260,7 +338,6 @@ void plug_post_reload(Plug *state){
 }
 
 //main function for updating each frame and draw the visualization
-bool marker = false;
 void plug_update(void){
   if(IsMusicValid(plug->music)) UpdateMusicStream(plug->music);
   float dt = GetFrameTime();
@@ -286,55 +363,9 @@ void plug_update(void){
     }else plug->error = true;
     UnloadDroppedFiles(dfile);
   }
-
+  plug_key_functions();
   // Play pause
-  if(IsKeyPressed(KEY_SPACE) && IsMusicValid(plug->music)){
-      if(IsMusicStreamPlaying(plug->music)){
-        PauseMusicStream(plug->music);
-      }else{
-        ResumeMusicStream(plug->music);
-      }
-  }
 
-  // Filter (Normal + LPF + HPF)
-  if(IsKeyPressed(KEY_COMMA)){
-    switchFilter(plug->music,CALLBACK_LPF);
-    currentFilter = CALLBACK_LPF;
-  } 
-  if(IsKeyPressed(KEY_PERIOD)){
-    switchFilter(plug->music,CALLBACK);
-    currentFilter = CALLBACK;
-  }
-  if(IsKeyPressed(KEY_SLASH)){
-    switchFilter(plug->music,CALLBACK_HPF);
-    currentFilter = CALLBACK_HPF;
-  }
-  if(IsKeyPressed(KEY_P)){
-    switchFilter(plug->music,CALLBACK_PAN);
-    currentFilter = CALLBACK_PAN;
-  } 
-  if(IsKeyPressed(KEY_B)){
-    switchFilter(plug->music,CALLBACK_BB);
-    currentFilter = CALLBACK_BB;
-  }
-  if(IsKeyPressed(KEY_T)){
-    switchFilter(plug->music,CALLBACK_TRB);
-    currentFilter = CALLBACK_TRB;
-  }
-
-  // Volume Controls (default = 0.5f);
-  if(IsKeyPressed(KEY_UP) && IsMusicValid(plug->music)){
-    if(plug->volume < 1.0f){
-      plug->volume += 0.1f;
-      SetMusicVolume(plug->music,plug->volume);
-    }
-  }
-  if(IsKeyPressed(KEY_DOWN) && IsMusicValid(plug->music)){
-    if(plug->volume > 0.1f){
-      plug->volume -= 0.1f;
-      SetMusicVolume(plug->music,plug->volume);
-    }
-  }
 
   float w = (float)GetRenderWidth();
   float h = (float)GetRenderHeight();

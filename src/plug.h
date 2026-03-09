@@ -11,7 +11,8 @@
   PLUG(plug_pre_reload,void*,void) \
   PLUG(plug_post_reload,void,void*) \
   PLUG(plug_unload_stream,void,void) \
-  PLUG(plug_src_init,void,const char* src)
+  PLUG(plug_src_init,void,const char* src) \
+  PLUG(plug_key_functions,void,void)
 
 #define PLUG(name,ret,...) typedef ret (name##_t)(__VA_ARGS__);
 LIST_OF_PLUGS
