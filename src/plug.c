@@ -35,7 +35,8 @@ typedef enum {
   CALLBACK_LPF,
   CALLBACK_HPF,
   CALLBACK_PAN,
-  CALLBACK_BB
+  CALLBACK_BB,
+  CALLBACK_TRB
 } filterType;
 
 filterType currentFilter = CALLBACK;
@@ -112,7 +113,7 @@ void callbackPan(void *bufferData,unsigned int frames){
   float cutoff = 1000.0f;
   float fsr = plug->music.stream.sampleRate;
   float k = 1.0f - expf(-2.0f * PI * cutoff / fsr);
-  float pan = 0.3f + 0.3f*sinf(GetTime()*2.0f);
+  float pan = 0.5f + 0.5f*sinf(GetTime()*2.0f);
   const float gainL = cosf(pan * M_PI_2);
   const float gainR = sinf(pan * M_PI_2);
   for(size_t i = 0;i<frames;++i){
@@ -136,12 +137,28 @@ void callbackBassBoost(void *bufferData, unsigned int frames) {
   float(*fs)[2] = bufferData;
   float cutoff = 200.0f / plug->music.stream.sampleRate;
   float k = cutoff / (cutoff + 0.1591549431f);
-  float gain = 3.5f; 
+  float gain = 3.0f; 
   for (size_t i = 0; i < frames; ++i) {
     plug->loadL += k * (fs[i][0] - plug->loadL);
     plug->loadR += k * (fs[i][1] - plug->loadR);
     fs[i][0] = fs[i][0] + (plug->loadL * (gain - 1.0f));
     fs[i][1] = fs[i][1] + (plug->loadR * (gain - 1.0f));
+    rb_push(&ring,fs[i][0]);
+  }
+}
+
+void callbackTrebleBoost(void *bufferData,unsigned int frames){
+  float(*fs)[2] = bufferData;
+  float cutoff = 4000.0f / plug->music.stream.sampleRate;
+  float k = cutoff / (cutoff + 0.1591549431f);
+  float gain = 2.0f;
+  for(size_t i = 0;i<frames;i++){
+    plug->loadL += k * (fs[i][0] - plug->loadL);
+    plug->loadR += k * (fs[i][1] - plug->loadR);
+    float highL = fs[i][0] - plug->loadL;
+    float highR = fs[i][0] - plug->loadL;
+    fs[i][0] = fs[i][0] + (highL * (gain-1.0f));
+    fs[i][1] = fs[i][1] + (highR * (gain-1.0f));
     rb_push(&ring,fs[i][0]);
   }
 }
@@ -153,6 +170,7 @@ void detachFilter(Music music){
   else if(currentFilter==CALLBACK_HPF)DetachAudioStreamProcessor(music.stream,callbackHPF);
   else if(currentFilter==CALLBACK_PAN)DetachAudioStreamProcessor(music.stream,callbackPan);
   else if(currentFilter==CALLBACK_BB)DetachAudioStreamProcessor(music.stream,callbackBassBoost);
+  else if(currentFilter==CALLBACK_TRB)DetachAudioStreamProcessor(music.stream,callbackTrebleBoost);
 }
 
 void switchFilter(Music music,filterType nextFilter){
@@ -163,6 +181,7 @@ void switchFilter(Music music,filterType nextFilter){
   else if(nextFilter == CALLBACK_HPF)AttachAudioStreamProcessor(music.stream,callbackHPF);
   else if(nextFilter == CALLBACK_PAN)AttachAudioStreamProcessor(music.stream,callbackPan);
   else if(nextFilter == CALLBACK_BB)AttachAudioStreamProcessor(music.stream,callbackBassBoost);
+  else if(nextFilter == CALLBACK_TRB)AttachAudioStreamProcessor(music.stream,callbackTrebleBoost);
 }
 // A fast fourier transform implementation 
 void fft(float in[],size_t stride,float complex out[],size_t n){
@@ -297,6 +316,10 @@ void plug_update(void){
   if(IsKeyPressed(KEY_B)){
     switchFilter(plug->music,CALLBACK_BB);
     currentFilter = CALLBACK_BB;
+  }
+  if(IsKeyPressed(KEY_T)){
+    switchFilter(plug->music,CALLBACK_TRB);
+    currentFilter = CALLBACK_TRB;
   }
 
   // Volume Controls (default = 0.5f);
