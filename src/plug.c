@@ -437,8 +437,21 @@ Plug *plug_pre_reload(void) {
 }
 void plug_post_reload(Plug *state) {
   plug = state;
-  if (IsMusicValid(plug->music))
+  if (IsMusicValid(plug->music)) {
+#ifndef EQ_MODE
     AttachAudioStreamProcessor(plug->music.stream, callback);
+#else
+    AttachAudioStreamProcessor(plug->music.stream, callbackEQ);
+    plug->bassGain = 1.0f;
+    plug->trebleGain = 1.0f;
+    plug->midGain = 1.0f;
+    plug->bassCutoff = 200.0f;
+    plug->trebleCutoff = 4000.0f;
+    plug->midLow = 800.0f;
+    plug->midHigh = 3000.0f;
+    plug->volume = 0.5f;
+#endif
+  }
 }
 
 // main function for updating each frame and draw the visualization
