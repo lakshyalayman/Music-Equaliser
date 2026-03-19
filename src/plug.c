@@ -20,14 +20,17 @@ typedef struct {
   Music music;
   float loadL;
   float loadR;
+  float highL;
+  float highR;
   float midL;
   float midR;
   float lowL;
   float lowR;
   float volume;
   float bassGain;
-  float trebleGain;
   float midGain;
+  float clearGain;
+  float trebleGain;
   float bassCutoff;
   float trebleCutoff;
   float midLow;
@@ -53,11 +56,7 @@ typedef enum {
   CALLBACK_EQ_MODE
 } filterType;
 
-#ifdef EQ_MODE
 filterType currentFilter = CALLBACK_EQ_MODE;
-#else
-filterType currentFilter = CALLBACK;
-#endif
 
 float in[N];
 float in1[N];
@@ -99,7 +98,7 @@ void callback(void *bufferData, unsigned int frames) {
 
 void callbackLPF(void *bufferdata, unsigned int frames) {
   float (*fs)[2] = bufferdata;
-  const float cutoff = 1000.0f / (plug->music.stream.sampleRate);
+  const float cutoff = plug->midLow / (plug->music.stream.sampleRate);
   const float k = cutoff / (cutoff + 0.1591549431f);
   for (size_t i = 0; i < frames; ++i) {
     plug->loadL += k * (fs[i][0] - plug->loadL);
@@ -112,7 +111,7 @@ void callbackLPF(void *bufferdata, unsigned int frames) {
 
 void callbackHPF(void *bufferData, unsigned int frames) {
   float (*fs)[2] = bufferData;
-  const float cutoff = 3330.0f / (plug->music.stream.sampleRate);
+  const float cutoff = plug->midHigh / (plug->music.stream.sampleRate);
   const float k = cutoff / (cutoff + 0.1591549431f);
   for (size_t i = 0; i < frames; ++i) {
     plug->loadL += k * (fs[i][0] - plug->loadL);
@@ -135,14 +134,14 @@ void callbackPan(void *bufferData, unsigned int frames) {
     plug->loadL += k * (fs[i][0] - plug->loadL);
     plug->loadR += k * (fs[i][1] - plug->loadR);
 
-    float lowLeft = plug->loadL;
-    float lowRight = plug->loadR;
+    plug->lowL = plug->loadL;
+    plug->lowR = plug->loadR;
 
-    float highLeft = fs[i][0] - lowLeft;
-    float highRight = fs[i][1] - lowRight;
+    float highLeft = fs[i][0] - plug->lowL;
+    float highRight = fs[i][1] - plug->lowR;
 
-    fs[i][0] = lowLeft + highLeft * gainL;
-    fs[i][1] = lowRight + highRight * gainR;
+    fs[i][0] = plug->lowL + highLeft * gainL;
+    fs[i][1] = plug->lowR + highRight * gainR;
 
     rb_push(&ring, fs[i][0]);
   }
@@ -150,9 +149,11 @@ void callbackPan(void *bufferData, unsigned int frames) {
 
 void callbackBassBoost(void *bufferData, unsigned int frames) {
   float (*fs)[2] = bufferData;
-  float cutoff = 200.0f / plug->music.stream.sampleRate;
+  // use cutoff = 200
+  float cutoff = plug->bassCutoff / plug->music.stream.sampleRate;
   float k = cutoff / (cutoff + 0.1591549431f);
-  float gain = 3.0f;
+  plug->bassGain = 2.5;
+  float gain = plug->bassGain;
   for (size_t i = 0; i < frames; ++i) {
     plug->loadL += k * (fs[i][0] - plug->loadL);
     plug->loadR += k * (fs[i][1] - plug->loadR);
@@ -164,16 +165,18 @@ void callbackBassBoost(void *bufferData, unsigned int frames) {
 
 void callbackTrebleBoost(void *bufferData, unsigned int frames) {
   float (*fs)[2] = bufferData;
-  float cutoff = 4000.0f / plug->music.stream.sampleRate;
+  // 4000
+  float cutoff = plug->trebleCutoff / plug->music.stream.sampleRate;
   float k = cutoff / (cutoff + 0.1591549431f);
-  float gain = 2.5f;
+  plug->trebleGain = 2.5;
+  float gain = plug->trebleGain;
   for (size_t i = 0; i < frames; i++) {
     plug->loadL += k * (fs[i][0] - plug->loadL);
     plug->loadR += k * (fs[i][1] - plug->loadR);
-    float highL = fs[i][0] - plug->loadL;
-    float highR = fs[i][0] - plug->loadL;
-    fs[i][0] = fs[i][0] + (highL * (gain - 1.0f));
-    fs[i][1] = fs[i][1] + (highR * (gain - 1.0f));
+    plug->highL = fs[i][0] - plug->loadL;
+    plug->highR = fs[i][0] - plug->loadL;
+    fs[i][0] = fs[i][0] + (plug->highL * (gain - 1.0f));
+    fs[i][1] = fs[i][1] + (plug->highR * (gain - 1.0f));
     rb_push(&ring, fs[i][0]);
   }
 }
@@ -181,11 +184,14 @@ void callbackTrebleBoost(void *bufferData, unsigned int frames) {
 void callbackClear(void *bufferData, unsigned int frames) {
   float (*fs)[2] = bufferData;
   float fsr = plug->music.stream.sampleRate;
-  float cutLow = 1000.0f / fsr;
-  float cutHigh = 5000.0f / fsr;
+
+  float cutLow = plug->midLow / fsr;
+  float cutHigh = plug->midHigh / fsr;
   float kL = cutLow / (cutLow + 0.1591549431f);
   float kH = cutHigh / (cutHigh + 0.1591549431f);
-  float gain = 2.5f;
+  // 2.5
+  plug->clearGain = 2.5;
+  float gain = plug->clearGain;
   for (size_t i = 0; i < frames; ++i) {
     plug->lowL += kL * (fs[i][0] - plug->lowL);
     plug->lowR += kL * (fs[i][1] - plug->lowR);
@@ -317,19 +323,20 @@ void plug_src_init(const char *src) {
   if (IsMusicValid(plug->music)) {
     PlayMusicStream(plug->music);
     printf("%i\n", plug->music.stream.sampleRate);
-#ifdef EQ_MODE
     AttachAudioStreamProcessor(plug->music.stream, callbackEQ);
-#else
-    AttachAudioStreamProcessor(plug->music.stream, callback);
-#endif /* ifdef EQ_MODE */
     plug->bassGain = 1.0f;
     plug->trebleGain = 1.0f;
+    plug->clearGain = 1.0f;
     plug->midGain = 1.0f;
     plug->bassCutoff = 200.0f;
     plug->trebleCutoff = 4000.0f;
-    plug->midLow = 800.0f;
-    plug->midHigh = 3000.0f;
+    plug->midLow = 1000.0f;
+    plug->midHigh = 4000.0f;
     plug->volume = 0.5f;
+    plug->lowL = 0.0f;
+    plug->lowR = 0.0f;
+    plug->highL = 0.0f;
+    plug->highR = 0.0f;
     SetMusicVolume(plug->music, plug->volume);
   }
 }
@@ -362,8 +369,7 @@ void plug_eq_reset(void) {
 }
 
 void plug_key_functions(void) {
-// Filter (Normal + LPF + HPF + Pan + BassBoost + TrebleBoost + Clear)
-#ifndef EQ_MODE
+  // Filter (Normal + LPF + HPF + Pan + BassBoost + TrebleBoost + Clear)
   if (IsKeyPressed(KEY_COMMA)) {
     switchFilter(plug->music, CALLBACK_LPF);
     currentFilter = CALLBACK_LPF;
@@ -380,7 +386,7 @@ void plug_key_functions(void) {
     switchFilter(plug->music, CALLBACK_PAN);
     currentFilter = CALLBACK_PAN;
   }
-  if (IsKeyPressed(KEY_B)) {
+  if (IsKeyPressed(KEY_T)) {
     switchFilter(plug->music, CALLBACK_BB);
     currentFilter = CALLBACK_BB;
   }
@@ -388,11 +394,10 @@ void plug_key_functions(void) {
     switchFilter(plug->music, CALLBACK_TRB);
     currentFilter = CALLBACK_TRB;
   }
-  if (IsKeyPressed(KEY_C)) {
+  if (IsKeyPressed(KEY_A)) {
     switchFilter(plug->music, CALLBACK_CLR);
     currentFilter = CALLBACK_CLR;
   }
-#else
   if (IsKeyPressed(KEY_R)) {
     plug_eq_reset();
   }
@@ -420,7 +425,6 @@ void plug_key_functions(void) {
     plug->trebleGain = Clamp(plug->trebleGain + 0.01f, 0.0f, 4.0f);
     printf("TREBLE-GAIN: %f\n", plug->trebleGain);
   }
-#endif
   // Volume Controls (default = 0.5f);
   if (IsKeyPressed(KEY_UP) && IsMusicValid(plug->music)) {
     if (plug->volume < 1.0f) {
