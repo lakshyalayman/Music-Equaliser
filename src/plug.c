@@ -350,6 +350,17 @@ void plug_unload_stream(void) {
   CloseWindow();
 }
 
+void plug_eq_reset(void) {
+  plug->bassGain = 1.0f;
+  plug->trebleGain = 1.0f;
+  plug->midGain = 1.0f;
+  plug->bassCutoff = 200.0f;
+  plug->trebleCutoff = 4000.0f;
+  plug->midLow = 800.0f;
+  plug->midHigh = 3000.0f;
+  plug->volume = 0.5f;
+}
+
 void plug_key_functions(void) {
 // Filter (Normal + LPF + HPF + Pan + BassBoost + TrebleBoost + Clear)
 #ifndef EQ_MODE
@@ -382,6 +393,9 @@ void plug_key_functions(void) {
     currentFilter = CALLBACK_CLR;
   }
 #else
+  if (IsKeyPressed(KEY_R)) {
+    plug_eq_reset();
+  }
   if (IsKeyDown(KEY_Z)) {
     plug->bassGain = Clamp(plug->bassGain - 0.01f, 0.0f, 4.0f);
     printf("BASS: %f\n", plug->bassGain);
