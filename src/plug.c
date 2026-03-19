@@ -137,11 +137,11 @@ void callbackPan(void *bufferData, unsigned int frames) {
     plug->lowL = plug->loadL;
     plug->lowR = plug->loadR;
 
-    float highLeft = fs[i][0] - plug->lowL;
-    float highRight = fs[i][1] - plug->lowR;
+    plug->highL = fs[i][0] - plug->lowL;
+    plug->highR = fs[i][1] - plug->lowR;
 
-    fs[i][0] = plug->lowL + highLeft * gainL;
-    fs[i][1] = plug->lowR + highRight * gainR;
+    fs[i][0] = plug->lowL + plug->highL * gainL;
+    fs[i][1] = plug->lowR + plug->highR * gainR;
 
     rb_push(&ring, fs[i][0]);
   }
@@ -152,7 +152,6 @@ void callbackBassBoost(void *bufferData, unsigned int frames) {
   // use cutoff = 200
   float cutoff = plug->bassCutoff / plug->music.stream.sampleRate;
   float k = cutoff / (cutoff + 0.1591549431f);
-  plug->bassGain = 2.5;
   float gain = plug->bassGain;
   for (size_t i = 0; i < frames; ++i) {
     plug->loadL += k * (fs[i][0] - plug->loadL);
@@ -168,7 +167,6 @@ void callbackTrebleBoost(void *bufferData, unsigned int frames) {
   // 4000
   float cutoff = plug->trebleCutoff / plug->music.stream.sampleRate;
   float k = cutoff / (cutoff + 0.1591549431f);
-  plug->trebleGain = 2.5;
   float gain = plug->trebleGain;
   for (size_t i = 0; i < frames; i++) {
     plug->loadL += k * (fs[i][0] - plug->loadL);
@@ -190,7 +188,6 @@ void callbackClear(void *bufferData, unsigned int frames) {
   float kL = cutLow / (cutLow + 0.1591549431f);
   float kH = cutHigh / (cutHigh + 0.1591549431f);
   // 2.5
-  plug->clearGain = 2.5;
   float gain = plug->clearGain;
   for (size_t i = 0; i < frames; ++i) {
     plug->lowL += kL * (fs[i][0] - plug->lowL);
@@ -371,32 +368,45 @@ void plug_eq_reset(void) {
 void plug_key_functions(void) {
   // Filter (Normal + LPF + HPF + Pan + BassBoost + TrebleBoost + Clear)
   if (IsKeyPressed(KEY_COMMA)) {
+    plug_eq_reset();
     switchFilter(plug->music, CALLBACK_LPF);
     currentFilter = CALLBACK_LPF;
   }
   if (IsKeyPressed(KEY_PERIOD)) {
+    plug_eq_reset();
     switchFilter(plug->music, CALLBACK);
     currentFilter = CALLBACK;
   }
   if (IsKeyPressed(KEY_SLASH)) {
+    plug_eq_reset();
     switchFilter(plug->music, CALLBACK_HPF);
     currentFilter = CALLBACK_HPF;
   }
   if (IsKeyPressed(KEY_P)) {
+    plug_eq_reset();
     switchFilter(plug->music, CALLBACK_PAN);
     currentFilter = CALLBACK_PAN;
   }
-  if (IsKeyPressed(KEY_T)) {
+  if (IsKeyPressed(KEY_E)) {
+    plug_eq_reset();
+    plug->bassGain = 2.5f;
     switchFilter(plug->music, CALLBACK_BB);
     currentFilter = CALLBACK_BB;
+    printf("currently in Bass Boost\n");
   }
   if (IsKeyPressed(KEY_T)) {
+    plug_eq_reset();
+    plug->trebleGain = 2.5f;
     switchFilter(plug->music, CALLBACK_TRB);
     currentFilter = CALLBACK_TRB;
+    printf("currently in Treble Boost\n");
   }
   if (IsKeyPressed(KEY_A)) {
+    plug_eq_reset();
+    plug->clearGain = 2.5f;
     switchFilter(plug->music, CALLBACK_CLR);
     currentFilter = CALLBACK_CLR;
+    printf("currently in Clear\n");
   }
   if (IsKeyPressed(KEY_R)) {
     plug_eq_reset();
