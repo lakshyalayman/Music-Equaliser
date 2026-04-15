@@ -1,6 +1,6 @@
-# 🎧 Raylib Audio Visualizer
+# 🎧 Raylib Audio Equaliser
 
-A real-time audio visualizer and DSP playground written in C using raylib, hot-reloadable plugins, FFT, and interactive audio filters (EQ, LPF, HPF, etc.).
+A real-time audio Equaliser and DSP playground written in C using raylib, hot-reloadable plugins, FFT, and interactive audio filters (EQ, LPF, HPF, etc.).
 
 ---
 
